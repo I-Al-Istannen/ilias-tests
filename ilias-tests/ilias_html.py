@@ -11,6 +11,9 @@ class ExtendedIliasPage(IliasPage):
     def __init__(self, soup: BeautifulSoup, _page_url: str):
         super().__init__(soup, _page_url, None)
 
+    def url(self):
+        return self._page_url
+
     def is_test_create_page(self):
         return "cmd=create" in self._page_url and "new_type=tst" in self._page_url
 

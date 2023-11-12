@@ -1,15 +1,17 @@
 from PFERD.logging import log
+from PFERD.utils import fmt_path
 
 from .ilias_action import IliasInteractor
 from .spec import IliasTest
 
 
 async def add_test(interactor: IliasInteractor, base_folder_url: str, test: IliasTest):
-    assert str(test.path) == "."
+    log.status("[bold cyan]", "Creating", f"Navigating to folder {fmt_path(test.path)}")
+    root_page = await interactor.navigate_to_folder(base_folder_url, test.path)
 
     log.status("[bold cyan]", "Creating", "Ilias object")
     test_page = await interactor.create_test(
-        base_folder_url,
+        root_page.url(),
         test.title,
         test.description
     )

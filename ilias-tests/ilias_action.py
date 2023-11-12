@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import http.cookies
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Union, Callable, Optional
 
 import aiohttp
@@ -10,7 +10,7 @@ from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler
 from PFERD.logging import log
-from PFERD.utils import soupify
+from PFERD.utils import soupify, fmt_path
 from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
 
@@ -76,6 +76,18 @@ class IliasInteractor:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self._save_cookies()
         return await self.session.__aexit__(exc_type, exc_val, exc_tb)
+
+    async def navigate_to_folder(self, base_url: str, path: PurePath) -> ExtendedIliasPage:
+        page = await self._get_extended_page(base_url)
+        for part in path.parts:
+            found_child = False
+            for child in page.get_child_elements():
+                if child.name == part:
+                    page = await self._get_extended_page(child.url)
+                    found_child = True
+            if not found_child:
+                raise CrawlError(f"Could not find folder {part!r} in {fmt_path(path)}")
+        return page
 
     async def create_test(self, folder_url: str, title: str, description: str) -> ExtendedIliasPage:
         folder = await self._get_extended_page(folder_url)
