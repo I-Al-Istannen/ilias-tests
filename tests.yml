@@ -1,0 +1,33 @@
+questions:
+  question1:
+    type: freeform_text
+    title: "My question is this..."
+    author: "Peter Pan"
+    summary: "This is a summary"
+    question_html: |
+      <h1>Hello World</h1>
+      <br />You there :)
+    points: 4.0
+  question2:
+    type: file_upload
+    title: "Uploady"
+    author: "Cookiemonster"
+    summary: "Give me your cookies!"
+    question_html: "<h1>HELLO there</h1>"
+    points: 4.0
+    allowed_filetypes: [ "cookie", "cookies" ]
+    max_bytes: 2 * 1024 * 1024
+
+tests:
+  first:
+    path: "."
+    title: "hello there"
+    description: "General kenobi"
+    intro_text: |
+      <h1>Some intro!</h1>
+    starting_time: "datetime.datetime.now()"
+    ending_time: "datetime.datetime.now() + datetime.timedelta(hours=5)"
+    numer_of_tries: 2
+    questions:
+      - question1
+      - question2

@@ -15,7 +15,7 @@ from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
 
 from .ilias_html import ExtendedIliasPage
-from .spec import TestQuestion, QuestionUploadFile, QuestionFreeFormText
+from .spec import TestQuestion
 
 
 class IliasInteractor:
@@ -77,62 +77,7 @@ class IliasInteractor:
         self._save_cookies()
         return await self.session.__aexit__(exc_type, exc_val, exc_tb)
 
-    async def hello(self):
-        log.status("[bold cyan]", "Creating test", "Creating object")
-        page = await self.create_test(
-            "https://ilias.example.com",
-            "hello there",
-            "General kenobi"
-        )
-        # page = await self._get_extended_page(
-        #     "https://ilias.example.com"
-        # )
-        # print(page.get_child_elements())
-        # page = await self._get_extended_page(page.get_child_elements()[0].url)
-        log.status("[bold cyan]", "Creating test", "Fetching settings")
-        tab = await self._get_extended_page(page.get_test_tabs()["Einstellungen"])
-        log.status("[bold cyan]", "Creating test", "Configuring")
-        res = await self.configure_test(
-            tab,
-            "Test this :)",
-            "My friend",
-            "<h1>Intro text</h1>",
-            datetime.datetime.now(),
-            datetime.datetime.now() + datetime.timedelta(hours=5),
-            2
-        )
-        log.status("[bold cyan]", "Creating test", "Navigating to questions")
-        tab = await self._get_extended_page(page.get_test_tabs()["Fragen"])
-        log.status("[bold cyan]", "Creating test", "Adding question 1")
-        resp = await self.add_question(
-            tab,
-            QuestionFreeFormText(
-                "My question is this...",
-                "Peter Pan",
-                "This is a summary, sir",
-                "<h1>HELLO</h1>",
-                4
-            )
-        )
-        log.status("[bold cyan]", "Creating test", "Adding question 2")
-        resp = await self.add_question(
-            tab,
-            QuestionUploadFile(
-                "Uploady",
-                "Cookiemonster",
-                "Give me your cookies!",
-                "<h1>HELLO there</h1>",
-                4,
-                ["cookie", "cookies"],
-                2 * 1024 * 1024
-            )
-        )
-        tab = await self._get_extended_page(page.get_test_tabs()["Fragen"])
-        log.status("[bold cyan]", "Creating test", "Reordering questions")
-        await self.reorder_questions(tab, ["My question is this...", "Uploady"])
-        log.status("[bold cyan]", "Creating test", "Finishing")
-
-    async def create_test(self, folder_url: str, name: str, description: str) -> ExtendedIliasPage:
+    async def create_test(self, folder_url: str, title: str, description: str) -> ExtendedIliasPage:
         folder = await self._get_extended_page(folder_url)
         create_url = folder.get_test_create_url()
         if not create_url:
@@ -144,12 +89,15 @@ class IliasInteractor:
         return await self._post_authenticated(
             submit_url,
             data={
-                "title": name,
+                "title": title,
                 "desc": description,
                 "save": submit_value
             },
             request_succeeded=_auth_redirected_to_test_page
         )
+
+    async def select_tab(self, page: ExtendedIliasPage, name: str):
+        return await self._get_extended_page(page.get_test_tabs()[name])
 
     async def configure_test(
         self,
