@@ -111,6 +111,9 @@ class IliasInteractor:
     async def select_tab(self, page: ExtendedIliasPage, name: str):
         return await self._get_extended_page(page.get_test_tabs()[name])
 
+    async def select_page(self, url: str):
+        return await self._get_extended_page(url)
+
     async def configure_test(
         self,
         settings_page: ExtendedIliasPage,
@@ -238,6 +241,10 @@ class IliasInteractor:
             url=url,
             data=data
         )
+
+    async def select_edit_question(self, question_url: str):
+        page = await self.select_page(question_url)
+        return await self.select_page(page.get_test_question_edit_url())
 
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
         return ExtendedIliasPage(await self._get_soup(url), url)

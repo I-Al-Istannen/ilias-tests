@@ -1,8 +1,9 @@
+from PFERD.crawl.ilias.kit_ilias_html import IliasPageElement, IliasElementType
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
 from .ilias_action import IliasInteractor
-from .spec import IliasTest
+from .spec import IliasTest, TestQuestion
 
 
 async def add_test(interactor: IliasInteractor, base_folder_url: str, test: IliasTest):
@@ -40,3 +41,31 @@ async def add_test(interactor: IliasInteractor, base_folder_url: str, test: Ilia
 
     log.status("[bold cyan]", "Creating", "Reordering questions")
     await interactor.reorder_questions(tab_page, [q.title for q in test.questions])
+
+
+async def slurp_questions_from_folder(interactor: IliasInteractor, folder_url: str) -> list[TestQuestion]:
+    log.status("[bold cyan]", "Slurping", "Crawling folder")
+    questions = []
+    page = await interactor.select_page(folder_url)
+
+    for child in page.get_child_elements():
+        if child.type == IliasElementType.TEST:
+            log.status("[bold cyan]", "Slurping", f"Slurping {child.name!r}")
+            questions.extend(await slurp_questions_from_test(interactor, child.url))
+        else:
+            log.explain(f"Skipping child ({child.name!r}) of wrong type {child.type!r}")
+
+    return questions
+
+
+async def slurp_questions_from_test(interactor: IliasInteractor, test_url: str) -> list[TestQuestion]:
+    page = await interactor.select_page(test_url)
+    question_tab = await interactor.select_tab(page, "Fragen")
+
+    elements = question_tab.get_test_question_listing()
+    questions: list[TestQuestion] = []
+    for title, url in elements:
+        question_page = await interactor.select_edit_question(url)
+        questions.append(question_page.get_test_question_reconstruct_from_edit())
+
+    return questions

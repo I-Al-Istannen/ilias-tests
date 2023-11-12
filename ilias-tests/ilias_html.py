@@ -6,6 +6,8 @@ from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.logging import log
 from bs4 import BeautifulSoup
 
+from .spec import QuestionUploadFile, QuestionFreeFormText
+
 
 class ExtendedIliasPage(IliasPage):
     def __init__(self, soup: BeautifulSoup, _page_url: str):
@@ -100,19 +102,27 @@ class ExtendedIliasPage(IliasPage):
         return results
 
     def get_test_question_ids(self) -> dict[str, str]:
+        """Returns { title -> question_id }"""
+        ids = {}
+        for question_id, title_link in self._get_test_question_ids_and_links():
+            ids[title_link.getText().strip()] = question_id
+
+        return ids
+
+    def _get_test_question_ids_and_links(self) -> list[tuple[str, bs4.Tag]]:
+        """Returns [(id, link tag for title)]"""
         if "cmd=questions" not in self._page_url or "ilobjtestgui" not in self._page_url:
             raise CrawlError("Not on test question page")
         table = self._soup.find(name="table", id=lambda x: x and x.startswith("tst_qst_lst"))
         if not table:
             raise CrawlError("Did not find questions table")
-        ids = {}
+        result = []
         for row in table.find(name="tbody").find_all(name="tr"):
             order_td = row.find(name="td", attrs={"name": lambda x: x and x.startswith("order[")})
             question_id = cast(str, order_td["name"]).replace("order[", "").replace("]", "").strip()
-            title = row.find(name="a").getText().strip()
-            ids[title] = question_id
+            result.append((question_id, row.find(name="a")))
 
-        return ids
+        return result
 
     def get_test_question_save_order_data(self, question_to_position: dict[str, str]) -> tuple[str, dict[str, str]]:
         url, _, _ = self._form_target_from_button("cmd[saveOrderAndObligations]")
@@ -122,6 +132,53 @@ class ExtendedIliasPage(IliasPage):
         for question_id, value in question_to_position.items():
             data[f"order[q_{question_id}]"] = value
         return url, data
+
+    def get_test_question_listing(self) -> list[tuple[str, str]]:
+        """Returns [(title, url)] for all questions in a test."""
+        result = []
+        for _, link in self._get_test_question_ids_and_links():
+            result.append((link.getText().strip(), self._abs_url_from_link(link)))
+        return result
+
+    def get_test_question_edit_url(self):
+        return self._abs_url_from_link(
+            self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=editQuestion" in x})
+        )
+
+    def get_test_question_reconstruct_from_edit(self):
+        if "cmd=editQuestion" not in self.url():
+            raise CrawlError("Not on question edit page")
+        title = self._soup.find(id="title")["value"].strip()
+        author = self._soup.find(id="author")["value"].strip()
+        summary = self._soup.find(id="comment")["value"].strip()
+        question_html = self._soup.find(id="question").getText().strip()
+
+        if "asstextquestiongui" in self.url():
+            # free from text
+            points = float(self._soup.find(id="non_keyword_points")["value"].strip())
+            return QuestionFreeFormText(
+                title=title,
+                author=author,
+                summary=summary,
+                question_html=question_html,
+                points=points,
+            )
+        elif "cmdClass=assfileuploadgui" in self.url():
+            # file upload
+            max_size_bytes = int(self._soup.find(id="maxsize")["value"].strip())
+            allowed_extensions = self._soup.find(id="allowedextensions")["value"].strip().split(",")
+            points = float(self._soup.find(id="points")["value"].strip())
+            return QuestionUploadFile(
+                title=title,
+                author=author,
+                summary=summary,
+                question_html=question_html,
+                points=points,
+                allowed_extensions=allowed_extensions,
+                max_size_bytes=max_size_bytes
+            )
+        else:
+            raise CrawlError(f"Unknown question type at '{self.url()}'")
 
     @staticmethod
     def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:

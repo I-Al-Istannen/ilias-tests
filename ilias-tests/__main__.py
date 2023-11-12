@@ -5,9 +5,9 @@ from pathlib import Path
 from PFERD.auth import KeyringAuthenticator, KeyringAuthSection
 from PFERD.logging import log
 
-from .automation import add_test
+from .automation import add_test, slurp_questions_from_folder
 from .ilias_action import IliasInteractor
-from .spec import load_spec_from_file
+from .spec import load_spec_from_file, dump_questions_to_yml
 
 
 def load_interactor():
@@ -34,6 +34,14 @@ async def main(interactor: IliasInteractor):
             "https://ilias.example.com",
             test
         )
+
+    log.status("[bold green]", "Setup", "Slurping created tests")
+
+    questions = await slurp_questions_from_folder(
+        interactor,
+        "https://ilias.example.com"
+    )
+    print(dump_questions_to_yml(questions))
 
 
 if __name__ == "__main__":
