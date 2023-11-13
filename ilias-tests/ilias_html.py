@@ -318,6 +318,16 @@ class ExtendedIliasPage(IliasPage):
             questions=questions
         )
 
+    def get_test_question_design_last_component_id(self) -> str:
+        editor = self._soup.find(id="ilEditorTD")
+        if not editor:
+            raise CrawlError("Could not find editor")
+        candidates: list[bs4.Tag] = list(editor.find_all(name="div", id=lambda x: x and x.startswith("pc")))
+        if len(candidates) >= 2:
+            last = candidates[-2]
+            return last["id"].removeprefix("pc")
+        return ""
+
     @staticmethod
     def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:
         for alert in page._soup.find_all(attrs={"role": "alert"}):

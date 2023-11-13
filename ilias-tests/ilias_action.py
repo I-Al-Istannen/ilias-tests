@@ -280,7 +280,6 @@ class IliasInteractor:
         resp = await self._post_authenticated_json(
             url=post_url,
             data={
-                "action_id": 11,
                 "component": "Paragraph",
                 "action": "insert",
                 "data": {
@@ -298,18 +297,16 @@ class IliasInteractor:
 
     async def design_page_add_image_block(self, edit_page: ExtendedIliasPage, path: Path, after_id: str) -> str:
         post_url, _ = edit_page.get_test_question_design_post_url()
-        new_id = "".join([str(randint(0, 9)) for _ in range(20)])
 
         post_data = {
             "standard_file": path,
             "standard_type": "File",
             "standard_size": "original",
             "full_type": "None",
-            "action_id": "10",
             "component": "MediaObject",
             "action": "insert",
             "after_pcid": after_id,
-            "pcid": new_id,
+            "pcid": "",
             "ilfilehash": random_ilfilehash()
         }
 
@@ -331,14 +328,15 @@ class IliasInteractor:
         await self._post_authenticated(
             url=post_url,
             data=build_form_data,
-            soup_succeeded=lambda x: print(x) or True
+            soup_succeeded=lambda x: True
         )
-        return new_id
+
+        edit_page = await self.select_page(edit_page.url())
+        return edit_page.get_test_question_design_last_component_id()
 
     async def design_page_add_code_block(
         self, edit_page: ExtendedIliasPage, code: str, language: str, file_name: str, after_id: str
     ) -> str:
-        new_id = "".join([str(randint(0, 9)) for _ in range(20)])
         _, post_url = edit_page.get_test_question_design_post_url()
 
         next_stage_page = await self._post_authenticated(
@@ -346,7 +344,7 @@ class IliasInteractor:
             data={
                 "cmd": "insert",
                 "ctype": "src",
-                "pcid": "",
+                "pcid": after_id,
                 "hier_id": "pg",
                 "pluginname": "",
                 "cmd[insert]": "-"
@@ -376,13 +374,13 @@ class IliasInteractor:
 
             return form_data
 
-        await self._post_authenticated(
+        page = await self._post_authenticated(
             url=post_url,
             data=build_form_data,
             soup_succeeded=lambda pg: "cmdClass=ilassquestionpagegui" in pg.url()
         )
 
-        return new_id
+        return page.get_test_question_design_last_component_id()
 
     async def download_file(self, url: str, output_folder: Path, prefix: str):
         auth_id = await self._current_auth_id()
