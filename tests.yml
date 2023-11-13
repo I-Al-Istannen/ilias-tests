@@ -18,7 +18,13 @@ questions:
     points: 4.0
     allowed_filetypes: [ "cookie", "cookies" ]
     max_bytes: 2 * 1024 * 1024
-    page_design: [ ]
+    page_design:
+      - type: "code"
+        code: |
+          int a = 20
+          int b = 10
+        language: "c"
+        name: "file.c"
   question3:
     type: single_choice
     title: "Choice"

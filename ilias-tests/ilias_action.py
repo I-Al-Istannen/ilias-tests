@@ -3,8 +3,6 @@ import datetime
 import http.cookies
 import json
 import mimetypes
-import random
-import string
 from pathlib import Path, PurePath
 from random import randint
 from typing import Any, Union, Callable, Optional
@@ -19,8 +17,8 @@ from PFERD.utils import soupify, fmt_path
 from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
 
-from .ilias_html import ExtendedIliasPage
-from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesignBlockImage
+from .ilias_html import ExtendedIliasPage, random_ilfilehash
+from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode
 
 
 class IliasInteractor:
@@ -271,11 +269,13 @@ class IliasInteractor:
                     current_id = await self.design_page_add_image_block(edit_page, path=image, after_id=current_id)
                 case PageDesignBlockText(text_html=text):
                     current_id = await self.design_page_add_text_block(edit_page, text_html=text, after_id=current_id)
+                case PageDesignBlockCode(code=code, language=lang, name=name):
+                    current_id = await self.design_page_add_code_block(edit_page, code, lang, name, current_id)
                 case _:
                     raise CrawlError("Unknown page design block")
 
     async def design_page_add_text_block(self, edit_page: ExtendedIliasPage, text_html: str, after_id: str) -> str:
-        post_url = edit_page.get_test_question_design_post_url()
+        post_url, _ = edit_page.get_test_question_design_post_url()
         new_id = "".join([str(randint(0, 9)) for _ in range(20)])
         resp = await self._post_authenticated_json(
             url=post_url,
@@ -297,7 +297,7 @@ class IliasInteractor:
         return new_id
 
     async def design_page_add_image_block(self, edit_page: ExtendedIliasPage, path: Path, after_id: str) -> str:
-        post_url = edit_page.get_test_question_design_post_url()
+        post_url, _ = edit_page.get_test_question_design_post_url()
         new_id = "".join([str(randint(0, 9)) for _ in range(20)])
 
         post_data = {
@@ -310,7 +310,7 @@ class IliasInteractor:
             "action": "insert",
             "after_pcid": after_id,
             "pcid": new_id,
-            "ilfilehash": ''.join(random.choice(string.ascii_lowercase + "0123456789") for _ in range(32))
+            "ilfilehash": random_ilfilehash()
         }
 
         def build_form_data():
@@ -333,6 +333,55 @@ class IliasInteractor:
             data=build_form_data,
             soup_succeeded=lambda x: print(x) or True
         )
+        return new_id
+
+    async def design_page_add_code_block(
+        self, edit_page: ExtendedIliasPage, code: str, language: str, file_name: str, after_id: str
+    ) -> str:
+        new_id = "".join([str(randint(0, 9)) for _ in range(20)])
+        _, post_url = edit_page.get_test_question_design_post_url()
+
+        next_stage_page = await self._post_authenticated(
+            url=post_url,
+            data={
+                "cmd": "insert",
+                "ctype": "src",
+                "pcid": "",
+                "hier_id": "pg",
+                "pluginname": "",
+                "cmd[insert]": "-"
+            },
+            soup_succeeded=lambda pg: "cmdClass=ilpageeditorgui" in pg.url()
+        )
+
+        post_url = next_stage_page.get_test_question_design_code_submit_url()
+        post_data = {
+            "par_language": "de",
+            "par_subcharacteristic": language,
+            "par_showlinenumbers": "1",
+            "par_content": code,
+            "par_downloadtitle": file_name,
+            "ilfilehash": random_ilfilehash(),
+            "cmd[create_src]": "Speichern",
+            "userfile": Path("")
+        }
+
+        def build_form_data():
+            form_data = aiohttp.FormData()
+            for post_key, post_val in post_data.items():
+                if isinstance(post_val, Path):
+                    form_data.add_field(name=post_key, value=b"", content_type="application/octet-stream", filename="")
+                else:
+                    form_data.add_field(post_key, post_val)
+
+            return form_data
+
+        await self._post_authenticated(
+            url=post_url,
+            data=build_form_data,
+            soup_succeeded=lambda pg: "cmdClass=ilassquestionpagegui" in pg.url()
+        )
+
         return new_id
 
     async def download_file(self, url: str, output_folder: Path, prefix: str):

@@ -1,3 +1,6 @@
+import random
+import re
+import string
 from pathlib import Path
 from typing import Optional, cast, Callable, Awaitable
 
@@ -8,7 +11,7 @@ from PFERD.logging import log
 from bs4 import BeautifulSoup
 
 from .spec import (QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice, PageDesignBlock,
-                   PageDesignBlockText, PageDesignBlockImage)
+                   PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode)
 
 
 class ExtendedIliasPage(IliasPage):
@@ -92,6 +95,10 @@ class ExtendedIliasPage(IliasPage):
         """Url for finalizing the question creation."""
         url, btn, form = self._form_target_from_button("cmd[saveReturn]")
         return url, self._get_extra_form_values(form)
+
+    def get_test_question_design_code_submit_url(self):
+        """Url for submitting a code block."""
+        return self._form_target_from_button("cmd[create_src]")[0]
 
     @staticmethod
     def _get_extra_form_values(form: bs4.Tag):
@@ -228,8 +235,11 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError("Could not find page edit button")
         return self._abs_url_from_link(link)
 
-    def get_test_question_design_post_url(self):
-        """Returns the post endpoint from the 'Design page' page."""
+    def get_test_question_design_post_url(self) -> tuple[str, str]:
+        """
+        Returns the post endpoint from the 'Design page' page.
+        First url is the base for text and images, the second for e.g. code
+        """
         for script in self._soup.find_all(name="script"):
             if not isinstance(script, bs4.Tag):
                 continue
@@ -239,9 +249,8 @@ class ExtendedIliasPage(IliasPage):
                 if not candidates:
                     raise CrawlError("Found no init call canidate")
                 init_call = candidates[0]
-                quote_start = init_call.find("'") + 1
-                quote_end = init_call.find("'", quote_start)
-                return init_call[quote_start:quote_end]
+                match = re.search(r"\('([^']+)','([^']+)'", init_call)
+                return match.group(1), self._abs_url_from_relative(match.group(2))
         raise CrawlError("Could not find copg editor base url")
 
     async def get_test_question_design_blocks(
@@ -265,6 +274,22 @@ class ExtendedIliasPage(IliasPage):
             child_classes = child.get("class", [])
             if "ilc_Paragraph" in child_classes:
                 blocks.append(PageDesignBlockText(child.decode_contents()))
+                continue
+            if "ilc_Code" in child_classes:
+                code = child.select_one("table .ilc_Sourcecode .ilc_code_block_Code")
+                for br in code.find_all(name="br"):
+                    br.replace_with("\n")
+                download_link = child.find(name="a", attrs={"href": lambda x: x and "cmd=download_paragraph" in x})
+                name = "unknown.c"
+                if download_link:
+                    if match := re.search(r"downloadtitle=([^&]+)", download_link["href"]):
+                        name = match.group(1)
+
+                blocks.append(PageDesignBlockCode(
+                    code=code.getText().strip(),
+                    language="c",  # guess
+                    name=name,
+                ))
                 continue
             if media_container := child.select_one(".ilc_media_cont_MediaContainer"):
                 img = media_container.find(name="img")
@@ -291,3 +316,7 @@ class ExtendedIliasPage(IliasPage):
             if "alert-success" in alert.get("class", ""):
                 return True
         return False
+
+
+def random_ilfilehash() -> str:
+    return ''.join(random.choice(string.ascii_lowercase + "0123456789") for _ in range(32))

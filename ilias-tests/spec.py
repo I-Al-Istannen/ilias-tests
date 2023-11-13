@@ -106,6 +106,8 @@ class PageDesignBlock(abc.ABC):
             return PageDesignBlockText.deserialize(yml)
         elif yml["type"] == "image":
             return PageDesignBlockImage.deserialize(yml)
+        elif yml["type"] == "code":
+            return PageDesignBlockCode.deserialize(yml)
         else:
             raise CrawlError(f"Unknown type {yml['type']!r}")
 
@@ -132,6 +134,20 @@ class PageDesignBlockImage(PageDesignBlock):
     @staticmethod
     def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockImage':
         return PageDesignBlockImage(Path(yml["path"]))
+
+
+class PageDesignBlockCode(PageDesignBlock):
+    def __init__(self, code: str, language: str, name: str):
+        self.code = code
+        self.language = language
+        self.name = name
+
+    def serialize(self) -> dict[str, Any]:
+        return {"code": self.code, "language": self.language, "name": self.name, "type": "code"}
+
+    @staticmethod
+    def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockCode':
+        return PageDesignBlockCode(yml["code"], yml["language"], yml["name"])
 
 
 class TestQuestion(abc.ABC):
