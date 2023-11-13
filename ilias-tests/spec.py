@@ -11,6 +11,7 @@ from slugify import slugify
 
 
 class QuestionType(Enum):
+    SINGLE_CHOICE = 1
     FREE_FORM_TEXT = 8
     FILE_UPLOAD = 14
 
@@ -64,6 +65,27 @@ def load_upload_file_question(
     )
 
 
+def load_single_choice_question(
+    title: str,
+    author: str,
+    summary: str,
+    question_html: str,
+    yml: dict[Any, Any]
+):
+    answers: list[tuple[str, float]] = []
+    for elem in yml["answers"]:
+        answers.append((elem["answer"], elem["points"]))
+
+    return QuestionSingleChoice(
+        title=title,
+        author=author,
+        summary=summary,
+        question_html=question_html,
+        shuffle=yml["shuffle"],
+        answers=answers
+    )
+
+
 class TestQuestion(abc.ABC):
     def __init__(self, title: str, author: str, summary: str, question_html: str, question_type: QuestionType):
         self.title = title
@@ -101,6 +123,8 @@ class TestQuestion(abc.ABC):
             return load_upload_file_question(title, author, summary, question_html, yml)
         elif str_type == "freeform_text":
             return load_freeform_question(title, author, summary, question_html, yml)
+        elif str_type == "single_choice":
+            return load_single_choice_question(title, author, summary, question_html, yml)
         else:
             raise CrawlError(f"Unknown question type {str_type}")
 
@@ -152,7 +176,50 @@ class QuestionUploadFile(TestQuestion):
             **super().serialize(),
             "allowed_filetypes": self.allowed_extensions,
             "max_bytes": self.max_size_bytes,
+            "points": self.points,
             "type": "file_upload"
+        }
+
+
+class QuestionSingleChoice(TestQuestion):
+
+    def __init__(
+        self,
+        title: str, author: str, summary: str, question_html: str,
+        shuffle: bool, answers: list[tuple[str, float]]
+    ):
+        super().__init__(title, author, summary, question_html, QuestionType.SINGLE_CHOICE)
+        self.shuffle = shuffle
+        self.answers = answers
+
+    def get_options(self) -> dict[str, str]:
+        # choice[answer][0]
+        # choice[image][0]"; filename="", octet-stream
+        # choice[points][0]
+        answer_options = {}
+        for index, (answer, points) in enumerate(self.answers):
+            answer_options[f"choice[answer][{index}]"] = answer
+            answer_options[f"choice[image][{index}]"] = Path("")
+            answer_options[f"choice[points][{index}]"] = str(points)
+
+        return {
+            **super().get_options(),
+            **answer_options,
+            "shuffle": "1" if self.shuffle else "0",
+            "types": "0",  # single line answers for now
+            "thumb_size": "",  # image preview size. Not supported for now.
+        }
+
+    def serialize(self) -> dict[str, Any]:
+        answers = []
+        for title, points in self.answers:
+            answers.append({"answer": title, "points": points})
+
+        return {
+            **super().serialize(),
+            "answers": answers,
+            "shuffle": self.shuffle,
+            "type": "single_choice"
         }
 
 

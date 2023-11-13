@@ -223,9 +223,19 @@ class IliasInteractor:
             if key not in post_data:
                 post_data[key] = val
 
+        def build_form_data():
+            form_data = aiohttp.FormData()
+            for post_key, post_val in post_data.items():
+                if isinstance(post_val, Path):
+                    form_data.add_field(name=post_key, value=b"", content_type="application/octet-stream", filename="")
+                else:
+                    form_data.add_field(post_key, post_val)
+
+            return form_data
+
         return await self._post_authenticated(
             url,
-            data=post_data
+            data=build_form_data
         )
 
     async def reorder_questions(self, questions_tab: ExtendedIliasPage, title_order: list[str]):

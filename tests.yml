@@ -17,6 +17,20 @@ questions:
     points: 4.0
     allowed_filetypes: [ "cookie", "cookies" ]
     max_bytes: 2 * 1024 * 1024
+  question3:
+    type: single_choice
+    title: "Choice"
+    author: "Cookiemonster"
+    summary: "Some choice"
+    question_html: "<h1>!HELLO! there</h1>"
+    shuffle: false
+    answers:
+      - answer: "First"
+        points: 1.0
+      - answer: "Second"
+        points: 3.0
+      - answer: "Third"
+        points: 1.0
 
 tests:
   first:
@@ -31,3 +45,4 @@ tests:
     questions:
       - question1
       - question2
+      - question3

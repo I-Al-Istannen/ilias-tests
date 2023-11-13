@@ -6,7 +6,7 @@ from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.logging import log
 from bs4 import BeautifulSoup
 
-from .spec import QuestionUploadFile, QuestionFreeFormText
+from .spec import QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice
 
 
 class ExtendedIliasPage(IliasPage):
@@ -176,6 +176,25 @@ class ExtendedIliasPage(IliasPage):
                 points=points,
                 allowed_extensions=allowed_extensions,
                 max_size_bytes=max_size_bytes
+            )
+        elif "cmdClass=asssinglechoicegui" in self.url():
+            shuffle = True if self._soup.find(id="shuffle").get("checked", None) else False
+            answer_table = self._soup.find(name="table", attrs={"class": lambda x: x and "singlechoicewizard" in x})
+            answers = []
+            for inpt in answer_table.find_all(name="input", id=lambda x: x and x.startswith("choice[answer]")):
+                answer_value = inpt.get("value", "")
+                answer_points = float(
+                    answer_table.find(id=inpt["id"].replace("answer", "points")).get("value", "0").strip()
+                )
+                answers.append((answer_value, answer_points))
+
+            return QuestionSingleChoice(
+                title=title,
+                author=author,
+                summary=summary,
+                question_html=question_html,
+                shuffle=shuffle,
+                answers=answers
             )
         else:
             raise CrawlError(f"Unknown question type at '{self.url()}'")
