@@ -53,7 +53,7 @@ tests:
       <h1>Some intro!</h1>
     starting_time: "datetime.datetime.now()"
     ending_time: "datetime.datetime.now() + datetime.timedelta(hours=5)"
-    numer_of_tries: 2
+    number_of_tries: 2
     questions:
       - question1
       - question2

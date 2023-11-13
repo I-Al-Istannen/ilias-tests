@@ -31,7 +31,7 @@ async def add_test(interactor: IliasInteractor, base_folder_url: str, test: Ilia
         test.intro_text,
         test.starting_time,
         test.ending_time,
-        test.numer_of_tries
+        test.number_of_tries
     )
     log.status("[bold cyan]", "Creating", "Navigating to questions")
     tab_page = await interactor.select_tab(tab_page, "Fragen")

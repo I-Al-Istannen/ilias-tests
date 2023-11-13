@@ -305,7 +305,7 @@ class IliasTest:
     intro_text: str
     starting_time: Optional[datetime.datetime]
     ending_time: Optional[datetime.datetime]
-    numer_of_tries: int
+    number_of_tries: int
 
     questions: list[TestQuestion]
 
@@ -317,7 +317,7 @@ class IliasTest:
             "intro_text": self.intro_text,
             "starting_time": self.starting_time,
             "ending_time": self.ending_time,
-            "number_of_tries": self.numer_of_tries,
+            "number_of_tries": self.number_of_tries,
             "questions": [questions_title_to_id[question.title] for question in self.questions]
         }
 
@@ -330,7 +330,7 @@ class IliasTest:
             intro_text=yml["intro_text"],
             starting_time=eval(yml["starting_time"]),
             ending_time=eval(yml["ending_time"]),
-            numer_of_tries=yml["numer_of_tries"],
+            number_of_tries=yml["number_of_tries"],
             questions=test_questions
         )
 

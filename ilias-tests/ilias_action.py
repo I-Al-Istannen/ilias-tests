@@ -125,7 +125,7 @@ class IliasInteractor:
         intro_text: str,
         starting_time: Optional[datetime.datetime],
         ending_time: Optional[datetime.datetime],
-        numer_of_tries: int
+        number_of_tries: int
     ):
         base_params = {
             "cmd[saveForm]": "Speichern",
@@ -153,7 +153,7 @@ class IliasInteractor:
         }
         run_test_params = {
             "limitPasses": "1",
-            "nr_of_tries": str(numer_of_tries),
+            "nr_of_tries": str(number_of_tries),
         }
         run_question_params = {
             "title_output": "0",  # show title and max points
