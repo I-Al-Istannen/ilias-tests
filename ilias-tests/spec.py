@@ -65,7 +65,7 @@ def load_upload_file_question(
         page_design=page_design,
         points=yml["points"],
         allowed_extensions=yml["allowed_filetypes"],
-        max_size_bytes=eval(yml["max_bytes"])
+        max_size_bytes=eval(str(yml["max_bytes"]))
     )
 
 
@@ -323,13 +323,15 @@ class IliasTest:
 
     @staticmethod
     def deserialize(yml: dict[str, Any], test_questions: list[TestQuestion]):
+        start_time = yml["starting_time"]
+        end_time = yml["ending_time"]
         return IliasTest(
             path=PurePath(yml["path"]),
             title=yml["title"],
             description=yml["description"],
             intro_text=yml["intro_text"],
-            starting_time=eval(yml["starting_time"]),
-            ending_time=eval(yml["ending_time"]),
+            starting_time=eval(start_time) if isinstance(start_time, str) else start_time,
+            ending_time=eval(end_time) if isinstance(end_time, str) else end_time,
             number_of_tries=yml["number_of_tries"],
             questions=test_questions
         )
