@@ -1,4 +1,4 @@
-from PFERD.crawl.ilias.kit_ilias_html import IliasPageElement, IliasElementType
+from PFERD.crawl.ilias.kit_ilias_html import IliasElementType
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
@@ -65,6 +65,7 @@ async def slurp_questions_from_test(interactor: IliasInteractor, test_url: str) 
     elements = question_tab.get_test_question_listing()
     questions: list[TestQuestion] = []
     for title, url in elements:
+        log.status("[bold bright_black]", "Slurping", "", f"[bright_black]({title!r})")
         question_page = await interactor.select_edit_question(url)
         questions.append(question_page.get_test_question_reconstruct_from_edit())
 
