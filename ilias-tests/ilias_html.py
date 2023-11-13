@@ -95,7 +95,7 @@ class ExtendedIliasPage(IliasPage):
     def _form_target_from_button(self, button_name: str):
         btn = self._soup.find(attrs={"name": button_name})
         if not btn:
-            raise CrawlError("Could not find create button")
+            raise CrawlError(f"Could not find {button_name!r} button")
         form = btn.find_parent(name="form")
         return self._abs_url_from_relative(form["action"]), btn, form
 
@@ -317,15 +317,30 @@ class ExtendedIliasPage(IliasPage):
 
     @staticmethod
     def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:
-        for alert in page._soup.find_all(attrs={"role": "alert"}):
-            if "alert-danger" in alert.get("class", ""):
-                log.warn("Got danger alert")
-                log.warn_contd(alert.getText().strip())
-                return False
+        if ExtendedIliasPage.page_has_failure_alert(page):
+            return False
         for alert in page._soup.find_all(attrs={"role": "alert"}):
             if "alert-success" in alert.get("class", ""):
                 return True
         return False
+
+    @staticmethod
+    def page_has_failure_alert(page: 'ExtendedIliasPage') -> bool:
+        for alert in page._soup.find_all(attrs={"role": "alert"}):
+            if "alert-danger" in alert.get("class", ""):
+                log.warn("Got danger alert")
+                log.warn_contd(alert.getText().strip())
+                return True
+        return False
+
+    def get_test_dashboard_end_all_passes_url(self) -> Optional[str]:
+        link = self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=finishAllUserPasses" in x})
+        if not link:
+            return None
+        return self._abs_url_from_link(link)
+
+    def get_test_dashboard_end_all_passes_confirm_url(self):
+        return self._form_target_from_button("cmd[confirmFinishTestPassForAllUser]")[0]
 
 
 def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:

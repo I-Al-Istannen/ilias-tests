@@ -432,6 +432,28 @@ class IliasInteractor:
             return output_file
         raise CrawlError(f"download_file failed even after authenticating on {url!r}")
 
+    async def end_all_user_passes(self, test_page: ExtendedIliasPage):
+        dashboard = await self.select_tab(test_page, "Dashboard")
+        url = dashboard.get_test_dashboard_end_all_passes_url()
+
+        if not url:
+            log.warn("End button not found (are all passes already finished?)")
+            return
+
+        page = await self._get_extended_page(url)
+        if ExtendedIliasPage.page_has_failure_alert(page):
+            raise CrawlError("Could not end passes")
+
+        # Confirm it
+        url = page.get_test_dashboard_end_all_passes_confirm_url()
+        await self._post_authenticated(
+            url=url,
+            data={
+                "cmd[confirmFinishTestPassForAllUser]": "Fortfahren"
+            },
+            soup_succeeded=lambda pg: "cmdClass=iltestparticipantsgui" in pg.url()
+        )
+
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
         return ExtendedIliasPage(await self._get_soup(url), url)
 

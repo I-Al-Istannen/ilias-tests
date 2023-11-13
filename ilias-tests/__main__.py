@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from PFERD.auth import KeyringAuthenticator, KeyringAuthSection, SimpleAuthenticator, SimpleAuthSection
+from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
@@ -80,6 +81,21 @@ async def run_upload(interactor: IliasInteractor, args: argparse.Namespace):
         )
 
 
+async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
+    log.status("[bold magenta]", "Setup", "Initializing Passmanager")
+
+    end_passes: bool = args.end_passes
+    test_url: str = args.test_url
+    test_page = await interactor.select_page(test_url)
+
+    if end_passes:
+        log.status("[bold cyan]", "Passes", "Ending passes")
+        await interactor.end_all_user_passes(test_page)
+        log.status("[bold cyan]", "Passes", "Done")
+    else:
+        log.warn("Nothing to do, existing")
+
+
 def main():
     parser = argparse.ArgumentParser(description='The forgotten ILIAS Test API', prog="ilias-tests")
     parser.add_argument(
@@ -100,6 +116,12 @@ def main():
     create.add_argument("spec", metavar="FILE", type=Path, help="The spec file to use")
     create.add_argument("ilias_folder", metavar="URL", type=str, help="The folder to place the test in")
 
+    pass_manager = subparsers.add_parser("passes", help="Helper for users' test passes")
+    pass_manager.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")
+    pass_manager.add_argument(
+        "--test-url", type=str, metavar="URL", help="The URL of the test to work on", required=True
+    )
+
     args = parser.parse_args()
 
     # show usage if no subcommand was picked
@@ -112,6 +134,8 @@ def main():
             run_command = run_slurp
         case "create":
             run_command = run_upload
+        case "passes":
+            run_command = run_passes
         case _:
             parser.print_help()
             exit(1)
@@ -120,10 +144,15 @@ def main():
         async with load_interactor(args) as interactor:
             await run_command(interactor, args)
 
+    # noinspection PyBroadException
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
         log.explain_topic("Interrupted, exiting immediately")
+    except CrawlError as e:
+        log.error(str(e))
+    except Exception:
+        log.unexpected_exception()
 
 
 if __name__ == "__main__":
