@@ -11,7 +11,8 @@ import aiohttp
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
-from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler
+# noinspection PyProtectedMember
+from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler, _iorepeat
 from PFERD.logging import log
 from PFERD.utils import soupify, fmt_path
 from aiohttp import ClientTimeout
@@ -55,6 +56,7 @@ class IliasInteractor:
         )
 
     def _load_cookies(self) -> None:
+        log.explain_topic(f"Loading cookies from {fmt_path(self._cookie_file)}")
         jar: Any = http.cookies.SimpleCookie()
         with open(self._cookie_file, encoding="utf-8") as f:
             for i, line in enumerate(f):
@@ -66,6 +68,7 @@ class IliasInteractor:
         self._cookie_jar.update_cookies(jar)
 
     def _save_cookies(self) -> None:
+        log.explain_topic(f"Saving cookies to {fmt_path(self._cookie_file)}")
         jar: Any = http.cookies.SimpleCookie()
         for morsel in self._cookie_jar:
             jar[morsel.key] = morsel
@@ -93,6 +96,7 @@ class IliasInteractor:
         return page
 
     async def create_test(self, folder_url: str, title: str, description: str) -> ExtendedIliasPage:
+        log.explain_topic(f"Creating test '{title}' in '{folder_url}'")
         folder = await self._get_extended_page(folder_url)
         create_url = folder.get_test_create_url()
         if not create_url:
@@ -112,9 +116,11 @@ class IliasInteractor:
         )
 
     async def select_tab(self, page: ExtendedIliasPage, name: str):
+        log.explain_topic(f"Selecting tab {name}")
         return await self._get_extended_page(page.get_test_tabs()[name])
 
     async def select_page(self, url: str):
+        log.explain_topic("Selecting ilias page")
         return await self._get_extended_page(url)
 
     async def configure_test(
@@ -127,6 +133,7 @@ class IliasInteractor:
         ending_time: Optional[datetime.datetime],
         number_of_tries: int
     ):
+        log.explain_topic(f"Configuring test {title}")
         base_params = {
             "cmd[saveForm]": "Speichern",
             "title": title,
@@ -201,6 +208,7 @@ class IliasInteractor:
         question_page: ExtendedIliasPage,
         question: TestQuestion
     ):
+        log.explain_topic(f"Adding question {question.title!r}")
         url = question_page.get_test_add_question_url()
         page = await self._get_extended_page(url)
 
@@ -242,6 +250,7 @@ class IliasInteractor:
         return question_page
 
     async def reorder_questions(self, questions_tab: ExtendedIliasPage, title_order: list[str]):
+        log.explain_topic("Reordering questions")
         ids = questions_tab.get_test_question_ids()
         log.explain_topic("Question ids")
         log.explain(str(ids))
@@ -256,14 +265,15 @@ class IliasInteractor:
         )
 
     async def select_edit_question(self, question_url: str):
+        log.explain(f"Editing question '{question_url}'")
         page = await self.select_page(question_url)
-        if page.is_test_question_custom_page():
-            print("Hello", question_url)
         return await self.select_page(page.get_test_question_edit_url())
 
     async def design_page_add_blocks(self, edit_page: ExtendedIliasPage, blocks: list[PageDesignBlock]):
+        log.explain_topic("Adding design blocks to page")
         current_id = ""
         for block in blocks:
+            log.explain(f"Adding block {block}")
             match block:
                 case PageDesignBlockImage(image=image):
                     current_id = await self.design_page_add_image_block(edit_page, path=image, after_id=current_id)
@@ -275,6 +285,7 @@ class IliasInteractor:
                     raise CrawlError("Unknown page design block")
 
     async def design_page_add_text_block(self, edit_page: ExtendedIliasPage, text_html: str, after_id: str) -> str:
+        log.explain(f"Adding text block after {after_id}")
         post_url, _ = edit_page.get_test_question_design_post_url()
         new_id = "".join([str(randint(0, 9)) for _ in range(20)])
         resp = await self._post_authenticated_json(
@@ -293,9 +304,11 @@ class IliasInteractor:
         )
         if resp["error"]:
             raise CrawlError(f"Adding text block failed with: {resp['error']!r}")
+        log.explain(f"Created block has id {new_id}")
         return new_id
 
     async def design_page_add_image_block(self, edit_page: ExtendedIliasPage, path: Path, after_id: str) -> str:
+        log.explain(f"Adding image block after {after_id}")
         post_url, _ = edit_page.get_test_question_design_post_url()
 
         post_data = {
@@ -332,11 +345,14 @@ class IliasInteractor:
         )
 
         edit_page = await self.select_page(edit_page.url())
-        return edit_page.get_test_question_design_last_component_id()
+        new_id = edit_page.get_test_question_design_last_component_id()
+        log.explain(f"Created block has id {new_id}")
+        return new_id
 
     async def design_page_add_code_block(
         self, edit_page: ExtendedIliasPage, code: str, language: str, file_name: str, after_id: str
     ) -> str:
+        log.explain(f"Adding code block after {after_id}")
         _, post_url = edit_page.get_test_question_design_post_url()
 
         next_stage_page = await self._post_authenticated(
@@ -351,6 +367,7 @@ class IliasInteractor:
             },
             soup_succeeded=lambda pg: "cmdClass=ilpageeditorgui" in pg.url()
         )
+        log.explain("Completed first stage")
 
         post_url = next_stage_page.get_test_question_design_code_submit_url()
         post_data = {
@@ -380,9 +397,12 @@ class IliasInteractor:
             soup_succeeded=lambda pg: "cmdClass=ilassquestionpagegui" in pg.url()
         )
 
-        return page.get_test_question_design_last_component_id()
+        new_id = page.get_test_question_design_last_component_id()
+        log.explain(f"Created block has id {new_id}")
+        return new_id
 
     async def download_file(self, url: str, output_folder: Path, prefix: str):
+        log.explain_topic(f"Downloading file {prefix!r} from '{url}' to {fmt_path(output_folder)}")
         auth_id = await self._current_auth_id()
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
@@ -393,9 +413,12 @@ class IliasInteractor:
                     filename = prefix + response.headers.get("content-description", "")
                     content = await response.read()
                     out_path = output_folder / filename
+                    log.explain(f"Writing to {fmt_path(out_path)}")
                     with open(out_path, "wb") as file:
                         file.write(content)
                     return out_path
+                else:
+                    log.explain(f"Got non 200 status code: {response.status}")
             return None
 
         if output_file := await do_request():
@@ -412,7 +435,9 @@ class IliasInteractor:
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
         return ExtendedIliasPage(await self._get_soup(url), url)
 
+    @_iorepeat(attempts=2, name="request page", failure_is_error=True)
     async def _get_soup(self, url: str, root_page_allowed: bool = False) -> BeautifulSoup:
+        log.explain(f"Requesting page for '{url}'")
         auth_id = await self._current_auth_id()
 
         async def do_request():
@@ -434,6 +459,7 @@ class IliasInteractor:
             return page
         raise CrawlError(f"get_page failed even after authenticating on {url!r}")
 
+    @_iorepeat(attempts=2, name="post authenticated", failure_is_error=True)
     async def _post_authenticated(
         self,
         url: str,
@@ -441,6 +467,7 @@ class IliasInteractor:
         request_succeeded: Callable[[aiohttp.ClientResponse], bool] = lambda resp: 200 <= resp.status < 300,
         soup_succeeded: Callable[[ExtendedIliasPage], bool] = ExtendedIliasPage.page_has_success_alert,
     ) -> ExtendedIliasPage:
+        log.explain(f"Sending post data to {url}")
         auth_id = await self._current_auth_id()
 
         def build_form_data():
@@ -454,12 +481,14 @@ class IliasInteractor:
 
         async def do_request():
             async with self.session.post(url, data=build_form_data(), allow_redirects=True) as response:
-                log.explain_topic("Checking response")
                 if request_succeeded(response):
-                    log.explain("Checking soup")
                     my_page = ExtendedIliasPage(soupify(await response.read()), str(response.url))
                     if soup_succeeded(my_page):
                         return my_page
+                    else:
+                        log.warn(f"Request to '{url}' failed extended validation")
+                else:
+                    log.warn(f"Request to '{url}' failed")
 
         if page := await do_request():
             return page
@@ -473,7 +502,9 @@ class IliasInteractor:
 
         raise CrawlError("post_authenticated failed even after authenticating")
 
+    @_iorepeat(attempts=2, name="post authenticated json", failure_is_error=True)
     async def _post_authenticated_json(self, url: str, data: Any) -> Any:
+        log.explain(f"Sending post json data to {url}")
         auth_id = await self._current_auth_id()
 
         async def do_request():

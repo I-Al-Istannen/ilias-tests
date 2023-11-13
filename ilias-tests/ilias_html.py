@@ -28,24 +28,6 @@ class ExtendedIliasPage(IliasPage):
     def is_test_question_edit_page(self):
         return "cmd=editQuestion" in self._page_url
 
-    def is_test_question_custom_page(self):
-        form = self._soup.find(name="form", attrs={"name": "ilAssQuestionPreview"})
-        if not form:
-            return False
-        after_start = False
-        between = 0
-        for child in form.children:
-            if not isinstance(child, bs4.Tag):
-                continue
-            if "ilc_page_title_PageTitle" in child.get("class", []):
-                after_start = True
-                continue
-            if after_start and "ilc_question_" in str(child.get("class", [])):
-                break
-            if after_start and "ilc_" in str(child.get("class", [])):
-                between += 1
-        return between > 0
-
     def get_test_create_url(self) -> Optional[str]:
         return self._abs_url_from_link(self._soup.find(id="tst"))
 
@@ -194,7 +176,7 @@ class ExtendedIliasPage(IliasPage):
             )
         elif "cmdClass=assfileuploadgui" in self.url():
             # file upload
-            max_size_bytes = int(self._soup.find(id="maxsize").get("value", "-1").strip())
+            max_size_bytes = int(self._soup.find(id="maxsize").get("value", "2097152").strip())
             allowed_extensions = self._soup.find(id="allowedextensions").get("value", "").strip().split(",")
             points = float(self._soup.find(id="points")["value"].strip())
             return QuestionUploadFile(
@@ -258,6 +240,7 @@ class ExtendedIliasPage(IliasPage):
         self,
         downloader: Callable[[str], Awaitable[Path]]
     ) -> list[PageDesignBlock]:
+        log.explain_topic(f"Fetching page design blocks for '{self.url()}'")
         form = self._soup.find(name="form", attrs={"name": "ilAssQuestionPreview"})
         if not form:
             raise CrawlError("Could not find question preview form")
@@ -274,9 +257,11 @@ class ExtendedIliasPage(IliasPage):
                 continue
             child_classes = child.get("class", [])
             if "ilc_Paragraph" in child_classes:
+                log.explain("Found text block")
                 blocks.append(PageDesignBlockText(_normalize_tag_for_design_block(child)))
                 continue
             if "ilc_Code" in child_classes:
+                log.explain("Found code block")
                 code = child.select_one("table .ilc_Sourcecode .ilc_code_block_Code")
                 for br in code.find_all(name="br"):
                     br.replace_with("\n")
@@ -293,6 +278,7 @@ class ExtendedIliasPage(IliasPage):
                 ))
                 continue
             if media_container := child.select_one(".ilc_media_cont_MediaContainer"):
+                log.explain("Found image block")
                 img = media_container.find(name="img")
                 if not img:
                     img = media_container.find(name="embed")
@@ -323,6 +309,7 @@ class ExtendedIliasPage(IliasPage):
         if not editor:
             raise CrawlError("Could not find editor")
         candidates: list[bs4.Tag] = list(editor.find_all(name="div", id=lambda x: x and x.startswith("pc")))
+        # question is always last, so return the one before it :)
         if len(candidates) >= 2:
             last = candidates[-2]
             return last["id"].removeprefix("pc")
@@ -357,8 +344,9 @@ def _norm(inpt: str) -> str:
 
 
 def _normalize_tag_for_design_block(element: bs4.Tag):
+    # remove class from <code> as ILIAS crashes otherwise
     for elem in element.find_all(name="code"):
-        elem.name = "span"
+        del elem["class"]
 
     for comment in element.findAll(text=lambda text: isinstance(text, bs4.Comment)):
         comment.extract()
