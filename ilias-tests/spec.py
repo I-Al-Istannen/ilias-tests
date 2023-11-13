@@ -36,6 +36,7 @@ def load_freeform_question(
     author: str,
     summary: str,
     question_html: str,
+    page_design: list['PageDesignBlock'],
     yml: dict[Any, Any]
 ):
     return QuestionFreeFormText(
@@ -43,6 +44,7 @@ def load_freeform_question(
         author=author,
         summary=summary,
         question_html=question_html,
+        page_design=page_design,
         points=yml["points"]
     )
 
@@ -52,6 +54,7 @@ def load_upload_file_question(
     author: str,
     summary: str,
     question_html: str,
+    page_design: list['PageDesignBlock'],
     yml: dict[Any, Any]
 ):
     return QuestionUploadFile(
@@ -59,6 +62,7 @@ def load_upload_file_question(
         author=author,
         summary=summary,
         question_html=question_html,
+        page_design=page_design,
         points=yml["points"],
         allowed_extensions=yml["allowed_filetypes"],
         max_size_bytes=eval(yml["max_bytes"])
@@ -70,6 +74,7 @@ def load_single_choice_question(
     author: str,
     summary: str,
     question_html: str,
+    page_design: list['PageDesignBlock'],
     yml: dict[Any, Any]
 ):
     answers: list[tuple[str, float]] = []
@@ -81,18 +86,65 @@ def load_single_choice_question(
         author=author,
         summary=summary,
         question_html=question_html,
+        page_design=page_design,
         shuffle=yml["shuffle"],
         answers=answers
     )
 
 
+class PageDesignBlock(abc.ABC):
+
+    @abc.abstractmethod
+    def serialize(self) -> dict[str, Any]:
+        ...
+
+    @staticmethod
+    def deserialize(yml: dict[str, Any]):
+        if "type" not in yml:
+            raise CrawlError("Could not find 'type' for block")
+        if yml["type"] == "text":
+            return PageDesignBlockText.deserialize(yml)
+        elif yml["type"] == "image":
+            return PageDesignBlockImage.deserialize(yml)
+        else:
+            raise CrawlError(f"Unknown type {yml['type']!r}")
+
+
+class PageDesignBlockText(PageDesignBlock):
+    def __init__(self, text_html: str):
+        self.text_html = text_html
+
+    def serialize(self):
+        return {"text": self.text_html, "type": "text"}
+
+    @staticmethod
+    def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockText':
+        return PageDesignBlockText(yml["text"])
+
+
+class PageDesignBlockImage(PageDesignBlock):
+    def __init__(self, image_path: Path):
+        self.image = image_path
+
+    def serialize(self) -> dict[str, Any]:
+        return {"path": str(self.image), "type": "image"}
+
+    @staticmethod
+    def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockImage':
+        return PageDesignBlockImage(Path(yml["path"]))
+
+
 class TestQuestion(abc.ABC):
-    def __init__(self, title: str, author: str, summary: str, question_html: str, question_type: QuestionType):
+    def __init__(
+        self, title: str, author: str, summary: str, question_html: str, question_type: QuestionType,
+        page_design: list[PageDesignBlock]
+    ):
         self.title = title
         self.author = author
         self.summary = summary
         self.question_html = question_html
         self.question_type = question_type
+        self.page_design = page_design
 
     def get_options(self) -> dict[str, str]:
         return {
@@ -108,7 +160,8 @@ class TestQuestion(abc.ABC):
             "title": self.title,
             "author": self.author,
             "summary": self.summary,
-            "question_html": self.question_html
+            "question_html": self.question_html,
+            "page_design": [block.serialize() for block in self.page_design]
         }
 
     @staticmethod
@@ -118,20 +171,24 @@ class TestQuestion(abc.ABC):
         author = yml["author"]
         summary = yml["summary"]
         question_html = yml["question_html"]
+        page_design = [PageDesignBlock.deserialize(x) for x in yml["page_design"]]
 
         if str_type == "file_upload":
-            return load_upload_file_question(title, author, summary, question_html, yml)
+            return load_upload_file_question(title, author, summary, question_html, page_design, yml)
         elif str_type == "freeform_text":
-            return load_freeform_question(title, author, summary, question_html, yml)
+            return load_freeform_question(title, author, summary, question_html, page_design, yml)
         elif str_type == "single_choice":
-            return load_single_choice_question(title, author, summary, question_html, yml)
+            return load_single_choice_question(title, author, summary, question_html, page_design, yml)
         else:
             raise CrawlError(f"Unknown question type {str_type}")
 
 
 class QuestionFreeFormText(TestQuestion):
-    def __init__(self, title: str, author: str, summary: str, question_html: str, points: float):
-        super().__init__(title, author, summary, question_html, QuestionType.FREE_FORM_TEXT)
+    def __init__(
+        self, title: str, author: str, summary: str, question_html: str, points: float,
+        page_design: list[PageDesignBlock]
+    ):
+        super().__init__(title, author, summary, question_html, QuestionType.FREE_FORM_TEXT, page_design)
         self.points = points
 
     def get_options(self) -> dict[str, str]:
@@ -155,10 +212,10 @@ class QuestionUploadFile(TestQuestion):
 
     def __init__(
         self,
-        title: str, author: str, summary: str, question_html: str,
+        title: str, author: str, summary: str, question_html: str, page_design: list[PageDesignBlock],
         points: float, allowed_extensions: list[str], max_size_bytes: int
     ):
-        super().__init__(title, author, summary, question_html, QuestionType.FILE_UPLOAD)
+        super().__init__(title, author, summary, question_html, QuestionType.FILE_UPLOAD, page_design)
         self.points = points
         self.allowed_extensions = allowed_extensions
         self.max_size_bytes = max_size_bytes
@@ -185,10 +242,10 @@ class QuestionSingleChoice(TestQuestion):
 
     def __init__(
         self,
-        title: str, author: str, summary: str, question_html: str,
+        title: str, author: str, summary: str, question_html: str, page_design: list[PageDesignBlock],
         shuffle: bool, answers: list[tuple[str, float]]
     ):
-        super().__init__(title, author, summary, question_html, QuestionType.SINGLE_CHOICE)
+        super().__init__(title, author, summary, question_html, QuestionType.SINGLE_CHOICE, page_design)
         self.shuffle = shuffle
         self.answers = answers
 

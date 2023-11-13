@@ -1,4 +1,5 @@
-from typing import Optional, cast
+from pathlib import Path
+from typing import Optional, cast, Callable, Awaitable
 
 import bs4
 from PFERD.crawl import CrawlError
@@ -6,7 +7,8 @@ from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.logging import log
 from bs4 import BeautifulSoup
 
-from .spec import QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice
+from .spec import (QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice, PageDesignBlock,
+                   PageDesignBlockText, PageDesignBlockImage)
 
 
 class ExtendedIliasPage(IliasPage):
@@ -21,6 +23,24 @@ class ExtendedIliasPage(IliasPage):
 
     def is_test_question_edit_page(self):
         return "cmd=editQuestion" in self._page_url
+
+    def is_test_question_custom_page(self):
+        form = self._soup.find(name="form", attrs={"name": "ilAssQuestionPreview"})
+        if not form:
+            return False
+        after_start = False
+        between = 0
+        for child in form.children:
+            if not isinstance(child, bs4.Tag):
+                continue
+            if "ilc_page_title_PageTitle" in child.get("class", []):
+                after_start = True
+                continue
+            if after_start and "ilc_question_" in str(child.get("class", [])):
+                break
+            if after_start and "ilc_" in str(child.get("class", [])):
+                between += 1
+        return between > 0
 
     def get_test_create_url(self) -> Optional[str]:
         return self._abs_url_from_link(self._soup.find(id="tst"))
@@ -145,7 +165,7 @@ class ExtendedIliasPage(IliasPage):
             self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=editQuestion" in x})
         )
 
-    def get_test_question_reconstruct_from_edit(self):
+    def get_test_question_reconstruct_from_edit(self, page_design: list[PageDesignBlock]):
         if "cmd=editQuestion" not in self.url():
             raise CrawlError("Not on question edit page")
         title = self._soup.find(id="title")["value"].strip()
@@ -161,6 +181,7 @@ class ExtendedIliasPage(IliasPage):
                 author=author,
                 summary=summary,
                 question_html=question_html,
+                page_design=page_design,
                 points=points,
             )
         elif "cmdClass=assfileuploadgui" in self.url():
@@ -173,6 +194,7 @@ class ExtendedIliasPage(IliasPage):
                 author=author,
                 summary=summary,
                 question_html=question_html,
+                page_design=page_design,
                 points=points,
                 allowed_extensions=allowed_extensions,
                 max_size_bytes=max_size_bytes
@@ -193,11 +215,70 @@ class ExtendedIliasPage(IliasPage):
                 author=author,
                 summary=summary,
                 question_html=question_html,
+                page_design=page_design,
                 shuffle=shuffle,
                 answers=answers
             )
         else:
             raise CrawlError(f"Unknown question type at '{self.url()}'")
+
+    def get_test_question_design_page_url(self):
+        link = self._soup.find(attrs={"href": lambda x: x and "cmdClass=ilassquestionpagegui" in x})
+        if not link:
+            raise CrawlError("Could not find page edit button")
+        return self._abs_url_from_link(link)
+
+    def get_test_question_design_post_url(self):
+        """Returns the post endpoint from the 'Design page' page."""
+        for script in self._soup.find_all(name="script"):
+            if not isinstance(script, bs4.Tag):
+                continue
+            text = "".join([str(x) for x in script.contents])
+            if "il.copg.editor.init" in text:
+                candidates = [line.strip() for line in text.splitlines() if "il.copg.editor.init" in line]
+                if not candidates:
+                    raise CrawlError("Found no init call canidate")
+                init_call = candidates[0]
+                quote_start = init_call.find("'") + 1
+                quote_end = init_call.find("'", quote_start)
+                return init_call[quote_start:quote_end]
+        raise CrawlError("Could not find copg editor base url")
+
+    async def get_test_question_design_blocks(
+        self,
+        downloader: Callable[[str], Awaitable[Path]]
+    ) -> list[PageDesignBlock]:
+        form = self._soup.find(name="form", attrs={"name": "ilAssQuestionPreview"})
+        if not form:
+            raise CrawlError("Could not find question preview form")
+        after_start = False
+        blocks = []
+
+        for child in form.children:
+            if not isinstance(child, bs4.Tag):
+                continue
+            if "ilc_page_title_PageTitle" in child.get("class", []):
+                after_start = True
+                continue
+            if not after_start:
+                continue
+            child_classes = child.get("class", [])
+            if "ilc_Paragraph" in child_classes:
+                blocks.append(PageDesignBlockText(child.decode_contents()))
+                continue
+            if media_container := child.select_one(".ilc_media_cont_MediaContainer"):
+                img = media_container.find(name="img")
+                if not img:
+                    img = media_container.find(name="embed")
+                path = await downloader(img["src"])
+                blocks.append(PageDesignBlockImage(image_path=path))
+                continue
+            if "ilc_question_" in str(child_classes):
+                break
+
+            log.warn(f"Found unknown design block: {child_classes!r}")
+
+        return blocks
 
     @staticmethod
     def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:

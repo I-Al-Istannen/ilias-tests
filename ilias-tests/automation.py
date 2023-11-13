@@ -1,6 +1,10 @@
+from pathlib import Path
+from typing import Awaitable, Callable
+
 from PFERD.crawl.ilias.kit_ilias_html import IliasElementType
 from PFERD.logging import log
 from PFERD.utils import fmt_path
+from slugify import slugify
 
 from .ilias_action import IliasInteractor
 from .spec import IliasTest, TestQuestion
@@ -51,14 +55,14 @@ async def slurp_questions_from_folder(interactor: IliasInteractor, folder_url: s
     for child in page.get_child_elements():
         if child.type == IliasElementType.TEST:
             log.status("[bold cyan]", "Slurping", f"Slurping {child.name!r}")
-            questions.extend(await slurp_questions_from_test(interactor, child.url))
+            questions.extend(await slurp_questions_from_test(interactor, child.url, Path("aux")))
         else:
             log.explain(f"Skipping child ({child.name!r}) of wrong type {child.type!r}")
 
     return questions
 
 
-async def slurp_questions_from_test(interactor: IliasInteractor, test_url: str) -> list[TestQuestion]:
+async def slurp_questions_from_test(interactor: IliasInteractor, test_url: str, data_path: Path) -> list[TestQuestion]:
     page = await interactor.select_page(test_url)
     question_tab = await interactor.select_tab(page, "Fragen")
 
@@ -66,7 +70,23 @@ async def slurp_questions_from_test(interactor: IliasInteractor, test_url: str) 
     questions: list[TestQuestion] = []
     for title, url in elements:
         log.status("[bold bright_black]", "Slurping", "", f"[bright_black]({title!r})")
-        question_page = await interactor.select_edit_question(url)
-        questions.append(question_page.get_test_question_reconstruct_from_edit())
+        question_page = await interactor.select_page(url)
+        page_design = await question_page.get_test_question_design_blocks(
+            downloader=_download_files(interactor, title, data_path)
+        )
+        edit_page = await interactor.select_page(question_page.get_test_question_edit_url())
+        questions.append(edit_page.get_test_question_reconstruct_from_edit(page_design))
 
     return questions
+
+
+def _download_files(interactor: IliasInteractor, title: str, aux_path: Path) -> Callable[[str], Awaitable[Path]]:
+    counter = 0
+
+    async def inner(url: str) -> Path:
+        nonlocal counter
+        path = await interactor.download_file(url, aux_path, slugify(f"{title}-{counter}") + "-")
+        counter += 1
+        return path
+
+    return inner

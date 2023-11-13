@@ -8,6 +8,7 @@ questions:
       <h1>Hello World</h1>
       <br />You there :)
     points: 4.0
+    page_design: [ ]
   question2:
     type: file_upload
     title: "Uploady"
@@ -17,6 +18,7 @@ questions:
     points: 4.0
     allowed_filetypes: [ "cookie", "cookies" ]
     max_bytes: 2 * 1024 * 1024
+    page_design: [ ]
   question3:
     type: single_choice
     title: "Choice"
@@ -31,6 +33,10 @@ questions:
         points: 3.0
       - answer: "Third"
         points: 1.0
+    page_design:
+      - type: "text"
+        text: |
+          Each correct answer nets you 0.5 points, not ticked is 0 and ticked but wrong is -0.5
 
 tests:
   first:

@@ -1,7 +1,12 @@
 import asyncio
 import datetime
 import http.cookies
+import json
+import mimetypes
+import random
+import string
 from pathlib import Path, PurePath
+from random import randint
 from typing import Any, Union, Callable, Optional
 
 import aiohttp
@@ -15,7 +20,7 @@ from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
 
 from .ilias_html import ExtendedIliasPage
-from .spec import TestQuestion
+from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesignBlockImage
 
 
 class IliasInteractor:
@@ -233,10 +238,10 @@ class IliasInteractor:
 
             return form_data
 
-        return await self._post_authenticated(
-            url,
-            data=build_form_data
-        )
+        question_page = await self._post_authenticated(url, data=build_form_data)
+        design_page = await self.select_page(question_page.get_test_question_design_page_url())
+        await self.design_page_add_blocks(design_page, question.page_design)
+        return question_page
 
     async def reorder_questions(self, questions_tab: ExtendedIliasPage, title_order: list[str]):
         ids = questions_tab.get_test_question_ids()
@@ -254,7 +259,108 @@ class IliasInteractor:
 
     async def select_edit_question(self, question_url: str):
         page = await self.select_page(question_url)
+        if page.is_test_question_custom_page():
+            print("Hello", question_url)
         return await self.select_page(page.get_test_question_edit_url())
+
+    async def design_page_add_blocks(self, edit_page: ExtendedIliasPage, blocks: list[PageDesignBlock]):
+        current_id = ""
+        for block in blocks:
+            match block:
+                case PageDesignBlockImage(image=image):
+                    current_id = await self.design_page_add_image_block(edit_page, path=image, after_id=current_id)
+                case PageDesignBlockText(text_html=text):
+                    current_id = await self.design_page_add_text_block(edit_page, text_html=text, after_id=current_id)
+                case _:
+                    raise CrawlError("Unknown page design block")
+
+    async def design_page_add_text_block(self, edit_page: ExtendedIliasPage, text_html: str, after_id: str) -> str:
+        post_url = edit_page.get_test_question_design_post_url()
+        new_id = "".join([str(randint(0, 9)) for _ in range(20)])
+        resp = await self._post_authenticated_json(
+            url=post_url,
+            data={
+                "action_id": 11,
+                "component": "Paragraph",
+                "action": "insert",
+                "data": {
+                    "after_pcid": after_id,
+                    "pcid": new_id,
+                    "content": text_html,
+                    "characteristic": "Standard",
+                    "fromPlaceholder": False
+                }
+            },
+        )
+        if resp["error"]:
+            raise CrawlError(f"Adding text block failed with: {resp['error']!r}")
+        return new_id
+
+    async def design_page_add_image_block(self, edit_page: ExtendedIliasPage, path: Path, after_id: str) -> str:
+        post_url = edit_page.get_test_question_design_post_url()
+        new_id = "".join([str(randint(0, 9)) for _ in range(20)])
+
+        post_data = {
+            "standard_file": path,
+            "standard_type": "File",
+            "standard_size": "original",
+            "full_type": "None",
+            "action_id": "10",
+            "component": "MediaObject",
+            "action": "insert",
+            "after_pcid": after_id,
+            "pcid": new_id,
+            "ilfilehash": ''.join(random.choice(string.ascii_lowercase + "0123456789") for _ in range(32))
+        }
+
+        def build_form_data():
+            form_data = aiohttp.FormData()
+            for post_key, post_val in post_data.items():
+                if isinstance(post_val, Path):
+                    form_data.add_field(
+                        name=post_key,
+                        value=open(post_val, "rb"),
+                        content_type=mimetypes.guess_type(post_val)[0],
+                        filename=str(post_val.name)
+                    )
+                else:
+                    form_data.add_field(post_key, post_val)
+
+            return form_data
+
+        await self._post_authenticated(
+            url=post_url,
+            data=build_form_data,
+            soup_succeeded=lambda x: print(x) or True
+        )
+        return new_id
+
+    async def download_file(self, url: str, output_folder: Path, prefix: str):
+        auth_id = await self._current_auth_id()
+        if not output_folder.exists():
+            output_folder.mkdir(parents=True, exist_ok=True)
+
+        async def do_request():
+            async with self.session.get(url) as response:
+                if 200 <= response.status < 300:
+                    filename = prefix + response.headers.get("content-description", "")
+                    content = await response.read()
+                    out_path = output_folder / filename
+                    with open(out_path, "wb") as file:
+                        file.write(content)
+                    return out_path
+            return None
+
+        if output_file := await do_request():
+            return output_file
+
+        # We weren't authenticated, so try to do that
+        await self.authenticate(auth_id)
+
+        # Retry once after authenticating. If this fails, we will die.
+        if output_file := await do_request():
+            return output_file
+        raise CrawlError(f"download_file failed even after authenticating on {url!r}")
 
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
         return ExtendedIliasPage(await self._get_soup(url), url)
@@ -319,6 +425,29 @@ class IliasInteractor:
             return page
 
         raise CrawlError("post_authenticated failed even after authenticating")
+
+    async def _post_authenticated_json(self, url: str, data: Any) -> Any:
+        auth_id = await self._current_auth_id()
+
+        async def do_request():
+            async with self.session.post(
+                url, data=json.dumps(data), allow_redirects=True, headers={"Content-Type": "application/json"}
+            ) as response:
+                log.explain_topic("Checking response")
+                if 200 <= response.status < 300:
+                    return json.loads(await response.read())
+
+        if page := await do_request():
+            return page
+
+        # We weren't authenticated, so try to do that
+        await self.authenticate(auth_id)
+
+        # Retry once after authenticating. If this fails, we will die.
+        if page := await do_request():
+            return page
+
+        raise CrawlError("post_authenticated_json failed even after authenticating")
 
     async def _current_auth_id(self) -> int:
         """
