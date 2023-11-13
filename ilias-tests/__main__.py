@@ -85,15 +85,31 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
     log.status("[bold magenta]", "Setup", "Initializing Passmanager")
 
     end_passes: bool = args.end_passes
+    publish: bool = args.publish
     test_url: str = args.test_url
     test_page = await interactor.select_page(test_url)
 
     if end_passes:
         log.status("[bold cyan]", "Passes", "Ending passes")
         await interactor.end_all_user_passes(test_page)
-        log.status("[bold cyan]", "Passes", "Done")
+    elif publish is not None:
+        log.status("[bold cyan]", "Passes", f"Changing test status to {'online' if publish else 'offline'}")
+        tab = await interactor.select_tab(test_page, "Einstellungen")
+        test = tab.get_test_reconstruct_from_properties(Path(""), [])
+        await interactor.configure_test(
+            settings_page=tab,
+            title=test.title,
+            description=test.description,
+            intro_text=test.intro_text,
+            starting_time=test.starting_time,
+            ending_time=test.ending_time,
+            number_of_tries=test.number_of_tries,
+            online=(publish)
+        )
     else:
-        log.warn("Nothing to do, existing")
+        log.warn("Nothing to do, exiting")
+        return
+    log.status("[bold cyan]", "Passes", "Done")
 
 
 def main():
@@ -118,6 +134,7 @@ def main():
 
     pass_manager = subparsers.add_parser("passes", help="Helper for users' test passes")
     pass_manager.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")
+    pass_manager.add_argument('--publish', action=argparse.BooleanOptionalAction, help="Sets the test publish status")
     pass_manager.add_argument(
         "--test-url", type=str, metavar="URL", help="The URL of the test to work on", required=True
     )

@@ -131,7 +131,8 @@ class IliasInteractor:
         intro_text: str,
         starting_time: Optional[datetime.datetime],
         ending_time: Optional[datetime.datetime],
-        number_of_tries: int
+        number_of_tries: int,
+        online: bool = False
     ):
         log.explain_topic(f"Configuring test {title}")
         base_params = {
@@ -143,7 +144,7 @@ class IliasInteractor:
             "anonymity": "0",
         }
         activation_params = {
-            "online": "0",
+            "online": "1" if online else "0",
             # "activation_type": "1",  # time limited
             # "access_period[start]": _format_time(datetime.datetime.now()),  # start of it
             # "access_period[end]": _format_time(datetime.datetime.now()),  # end of it
