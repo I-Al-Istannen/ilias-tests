@@ -38,7 +38,7 @@ async def add_test(interactor: IliasInteractor, base_folder_url: str, test: Ilia
 
     log.status("[bold cyan]", "Creating", "Adding questions")
     for index, question in enumerate(test.questions):
-        log.status("[bold cyan]", "Creating", f"Adding question {index + 1}")
+        log.status("[bold cyan]", "Creating", f"Adding question {index + 1}", f"[bright_black]({question.title!r})")
         await interactor.add_question(tab_page, question)
 
     log.status("[bold cyan]", "Creating", "Navigating to questions")

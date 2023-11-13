@@ -176,10 +176,10 @@ class ExtendedIliasPage(IliasPage):
     def get_test_question_reconstruct_from_edit(self, page_design: list[PageDesignBlock]):
         if "cmd=editQuestion" not in self.url():
             raise CrawlError("Not on question edit page")
-        title = self._soup.find(id="title")["value"].strip()
-        author = self._soup.find(id="author")["value"].strip()
-        summary = self._soup.find(id="comment").get("value", "").strip()
-        question_html = self._soup.find(id="question").getText().strip()
+        title = _norm(self._soup.find(id="title")["value"].strip())
+        author = _norm(self._soup.find(id="author")["value"].strip())
+        summary = _norm(self._soup.find(id="comment").get("value", "").strip())
+        question_html = _norm(self._soup.find(id="question").getText().strip())
 
         if "asstextquestiongui" in self.url():
             # free from text
@@ -212,7 +212,7 @@ class ExtendedIliasPage(IliasPage):
             answer_table = self._soup.find(name="table", attrs={"class": lambda x: x and "singlechoicewizard" in x})
             answers = []
             for inpt in answer_table.find_all(name="input", id=lambda x: x and x.startswith("choice[answer]")):
-                answer_value = inpt.get("value", "")
+                answer_value = _norm(inpt.get("value", ""))
                 answer_points = float(
                     answer_table.find(id=inpt["id"].replace("answer", "points")).get("value", "0").strip()
                 )
@@ -274,7 +274,7 @@ class ExtendedIliasPage(IliasPage):
                 continue
             child_classes = child.get("class", [])
             if "ilc_Paragraph" in child_classes:
-                blocks.append(PageDesignBlockText(child.decode_contents()))
+                blocks.append(PageDesignBlockText(_normalize_tag_for_design_block(child)))
                 continue
             if "ilc_Code" in child_classes:
                 code = child.select_one("table .ilc_Sourcecode .ilc_code_block_Code")
@@ -287,9 +287,9 @@ class ExtendedIliasPage(IliasPage):
                         name = match.group(1)
 
                 blocks.append(PageDesignBlockCode(
-                    code=code.getText().strip(),
+                    code=_norm(code.getText().strip()),
                     language="c",  # guess
-                    name=name,
+                    name=_norm(name),
                 ))
                 continue
             if media_container := child.select_one(".ilc_media_cont_MediaContainer"):
@@ -308,13 +308,13 @@ class ExtendedIliasPage(IliasPage):
 
     def get_test_reconstruct_from_properties(self, path: PurePath, questions: list[TestQuestion]) -> IliasTest:
         return IliasTest(
-            path=PurePath("."),
-            title=self._soup.find(id="title").get("value", ""),
-            description="".join([str(x) for x in self._soup.find(id="description").contents]),
-            intro_text="".join([str(x) for x in self._soup.find(id="introduction").contents]),
+            path=path,
+            title=_norm(self._soup.find(id="title").get("value", "")),
+            description=_norm("".join([str(x) for x in self._soup.find(id="description").contents])),
+            intro_text=_norm("".join([str(x) for x in self._soup.find(id="introduction").contents])),
             starting_time=_parse_time(self._soup.find(id="starting_time")),
             ending_time=_parse_time(self._soup.find(id="ending_time")),
-            numer_of_tries=int(self._soup.find(id="nr_of_tries").get("value", "100")),
+            number_of_tries=int(self._soup.find(id="nr_of_tries").get("value", "100")),
             questions=questions
         )
 
@@ -340,3 +340,17 @@ def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:
 
 def random_ilfilehash() -> str:
     return ''.join(random.choice(string.ascii_lowercase + "0123456789") for _ in range(32))
+
+
+def _norm(inpt: str) -> str:
+    return inpt.strip().replace("\u00a0", " ").replace("\r\n", "\n")
+
+
+def _normalize_tag_for_design_block(element: bs4.Tag):
+    for elem in element.find_all(name="code"):
+        elem.name = "span"
+
+    for comment in element.findAll(text=lambda text: isinstance(text, bs4.Comment)):
+        comment.extract()
+
+    return _norm(element.decode_contents())
