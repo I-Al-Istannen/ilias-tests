@@ -150,7 +150,7 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError("Not on question edit page")
         title = self._soup.find(id="title")["value"].strip()
         author = self._soup.find(id="author")["value"].strip()
-        summary = self._soup.find(id="comment")["value"].strip()
+        summary = self._soup.find(id="comment").get("value", "").strip()
         question_html = self._soup.find(id="question").getText().strip()
 
         if "asstextquestiongui" in self.url():
@@ -165,8 +165,8 @@ class ExtendedIliasPage(IliasPage):
             )
         elif "cmdClass=assfileuploadgui" in self.url():
             # file upload
-            max_size_bytes = int(self._soup.find(id="maxsize")["value"].strip())
-            allowed_extensions = self._soup.find(id="allowedextensions")["value"].strip().split(",")
+            max_size_bytes = int(self._soup.find(id="maxsize").get("value", "-1").strip())
+            allowed_extensions = self._soup.find(id="allowedextensions").get("value", "").strip().split(",")
             points = float(self._soup.find(id="points")["value"].strip())
             return QuestionUploadFile(
                 title=title,
