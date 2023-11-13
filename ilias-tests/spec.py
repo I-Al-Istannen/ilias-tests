@@ -15,6 +15,21 @@ class QuestionType(Enum):
     FILE_UPLOAD = 14
 
 
+def str_presenter(dumper, data):
+    """
+    Configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    Ref: https://github.com/yaml/pyyaml/issues/240#issuecomment-1096224358
+    """
+    if data.count('\n') > 0 or data.count("<p>") > 0:
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+yaml.add_representer(str, str_presenter)
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
+
+
 def load_freeform_question(
     title: str,
     author: str,
@@ -195,4 +210,4 @@ def dump_questions_to_yml(questions: list[TestQuestion]) -> str:
         slug = slugify(question.title)
         yml_dict = question.serialize()
         outer[slug] = yml_dict
-    return yaml.safe_dump({"questions": outer})
+    return yaml.safe_dump({"questions": outer}, indent=2, allow_unicode=True)
