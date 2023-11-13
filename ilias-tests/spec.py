@@ -309,6 +309,18 @@ class IliasTest:
 
     questions: list[TestQuestion]
 
+    def serialize(self, questions_title_to_id: dict[str, str]) -> dict[str, Any]:
+        return {
+            "path": str(self.path),
+            "title": self.title,
+            "description": self.description,
+            "intro_text": self.intro_text,
+            "starting_time": self.starting_time,
+            "ending_time": self.ending_time,
+            "number_of_tries": self.numer_of_tries,
+            "questions": [questions_title_to_id[question.title] for question in self.questions]
+        }
+
     @staticmethod
     def deserialize(yml: dict[str, Any], test_questions: list[TestQuestion]):
         return IliasTest(
@@ -344,10 +356,30 @@ def load_spec_from_file(path: Path) -> Spec:
     return Spec(tests=tests)
 
 
-def dump_questions_to_yml(questions: list[TestQuestion]) -> str:
+def dump_questions_to_yml_dict(questions: list[TestQuestion]) -> dict[str, Any]:
     outer = {}
     for question in questions:
         slug = slugify(question.title)
         yml_dict = question.serialize()
         outer[slug] = yml_dict
-    return yaml.safe_dump({"questions": outer}, indent=2, allow_unicode=True)
+    return outer
+
+
+def dump_tests_to_yml(tests: list[IliasTest]) -> str:
+    questions = [question for test in tests for question in test.questions]
+
+    question_title_to_id = {}
+    for question in questions:
+        question_title_to_id[question.title] = slugify(question.title)
+
+    tests_dict = {}
+    for test in tests:
+        slug = slugify(test.title)
+        yml_dict = test.serialize(question_title_to_id)
+        tests_dict[slug] = yml_dict
+
+    return yaml.safe_dump(
+        {"tests": tests_dict, "questions": dump_questions_to_yml_dict(questions)},
+        indent=2,
+        allow_unicode=True
+    )

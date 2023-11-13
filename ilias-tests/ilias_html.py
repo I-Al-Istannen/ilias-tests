@@ -1,7 +1,8 @@
+import datetime
 import random
 import re
 import string
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Optional, cast, Callable, Awaitable
 
 import bs4
@@ -11,7 +12,7 @@ from PFERD.logging import log
 from bs4 import BeautifulSoup
 
 from .spec import (QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice, PageDesignBlock,
-                   PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode)
+                   PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode, IliasTest, TestQuestion)
 
 
 class ExtendedIliasPage(IliasPage):
@@ -305,6 +306,18 @@ class ExtendedIliasPage(IliasPage):
 
         return blocks
 
+    def get_test_reconstruct_from_properties(self, path: PurePath, questions: list[TestQuestion]) -> IliasTest:
+        return IliasTest(
+            path=PurePath("."),
+            title=self._soup.find(id="title").get("value", ""),
+            description="".join([str(x) for x in self._soup.find(id="description").contents]),
+            intro_text="".join([str(x) for x in self._soup.find(id="introduction").contents]),
+            starting_time=_parse_time(self._soup.find(id="starting_time")),
+            ending_time=_parse_time(self._soup.find(id="ending_time")),
+            numer_of_tries=int(self._soup.find(id="nr_of_tries").get("value", "100")),
+            questions=questions
+        )
+
     @staticmethod
     def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:
         for alert in page._soup.find_all(attrs={"role": "alert"}):
@@ -316,6 +329,13 @@ class ExtendedIliasPage(IliasPage):
             if "alert-success" in alert.get("class", ""):
                 return True
         return False
+
+
+def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:
+    time_str = time_input.get("value", None)
+    if not time_str:
+        return None
+    return datetime.datetime.strptime(time_str, "%d.%m.%Y %H:%M")
 
 
 def random_ilfilehash() -> str:

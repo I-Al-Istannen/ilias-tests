@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Awaitable, Callable
 
 from PFERD.crawl.ilias.kit_ilias_html import IliasElementType
@@ -7,6 +7,7 @@ from PFERD.utils import fmt_path
 from slugify import slugify
 
 from .ilias_action import IliasInteractor
+from .ilias_html import ExtendedIliasPage
 from .spec import IliasTest, TestQuestion
 
 
@@ -47,24 +48,30 @@ async def add_test(interactor: IliasInteractor, base_folder_url: str, test: Ilia
     await interactor.reorder_questions(tab_page, [q.title for q in test.questions])
 
 
-async def slurp_questions_from_folder(interactor: IliasInteractor, folder_url: str) -> list[TestQuestion]:
+async def slurp_tests_from_folder(interactor: IliasInteractor, folder_url: str) -> list[IliasTest]:
     log.status("[bold cyan]", "Slurping", "Crawling folder")
-    questions = []
     page = await interactor.select_page(folder_url)
+    tests = []
 
     for child in page.get_child_elements():
         if child.type == IliasElementType.TEST:
             log.status("[bold cyan]", "Slurping", f"Slurping {child.name!r}")
-            questions.extend(await slurp_questions_from_test(interactor, child.url, Path("aux")))
+            test_page = await interactor.select_page(child.url)
+            properties_page = await interactor.select_tab(test_page, "Einstellungen")
+
+            questions = await slurp_questions_from_test(interactor, test_page, Path("aux"))
+
+            tests.append(properties_page.get_test_reconstruct_from_properties(PurePath("."), questions))
         else:
             log.explain(f"Skipping child ({child.name!r}) of wrong type {child.type!r}")
 
-    return questions
+    return tests
 
 
-async def slurp_questions_from_test(interactor: IliasInteractor, test_url: str, data_path: Path) -> list[TestQuestion]:
-    page = await interactor.select_page(test_url)
-    question_tab = await interactor.select_tab(page, "Fragen")
+async def slurp_questions_from_test(
+    interactor: IliasInteractor, test_page: ExtendedIliasPage, data_path: Path
+) -> list[TestQuestion]:
+    question_tab = await interactor.select_tab(test_page, "Fragen")
 
     elements = question_tab.get_test_question_listing()
     questions: list[TestQuestion] = []
