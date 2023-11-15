@@ -2,7 +2,7 @@ import datetime
 import random
 import re
 import string
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Optional, cast, Callable, Awaitable
 
 import bs4
@@ -292,9 +292,8 @@ class ExtendedIliasPage(IliasPage):
 
         return blocks
 
-    def get_test_reconstruct_from_properties(self, path: PurePath, questions: list[TestQuestion]) -> IliasTest:
+    def get_test_reconstruct_from_properties(self, questions: list[TestQuestion]) -> IliasTest:
         return IliasTest(
-            path=path,
             title=_norm(self._soup.find(id="title").get("value", "")),
             description=_norm("".join([str(x) for x in self._soup.find(id="description").contents])),
             intro_text=_norm("".join([str(x) for x in self._soup.find(id="introduction").contents])),

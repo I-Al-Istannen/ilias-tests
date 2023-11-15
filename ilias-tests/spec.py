@@ -1,5 +1,6 @@
 import abc
 import datetime
+import fnmatch
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import Optional, Any
 
 import yaml
 from PFERD.crawl import CrawlError
+from PFERD.logging import log
 from slugify import slugify
 
 
@@ -381,3 +383,9 @@ def dump_tests_to_yml(tests: list[IliasTest]) -> str:
         indent=2,
         allow_unicode=True
     )
+
+
+def filter_with_glob(element: str, glob: str) -> bool:
+    result = fnmatch.fnmatch(element, glob)
+    log.explain(f"Keep {element!r} for glob {glob!r}? {'Yes' if result else 'No'}")
+    return result

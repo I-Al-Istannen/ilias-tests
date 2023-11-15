@@ -2,16 +2,16 @@ import argparse
 import asyncio
 import configparser
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from PFERD.auth import KeyringAuthenticator, KeyringAuthSection, SimpleAuthenticator, SimpleAuthSection
 from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
-from .automation import slurp_tests_from_folder, add_test
+from .automation import slurp_tests_from_folder, add_test, ilias_glob
 from .ilias_action import IliasInteractor
-from .spec import load_spec_from_file, dump_tests_to_yml
+from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_glob
 
 
 def load_interactor(args: argparse.Namespace):
@@ -65,20 +65,30 @@ async def run_create(interactor: IliasInteractor, args: argparse.Namespace):
         log.print(f"[bold red]Spec file {fmt_path(spec_path)} does not exist")
         exit(1)
     ilias_folder: str = args.ilias_folder
+    replicate_glob: str = args.replicate
+    test_filter: str = args.tests
 
     log.status("[bold magenta]", "Setup", "Loading spec")
-    log.explain(f"Loading spec from {fmt_path(spec_path)}")
+    log.explain_topic(f"Loading spec from {fmt_path(spec_path)}")
     spec = load_spec_from_file(spec_path)
 
-    log.status("[bold cyan]", "Create", f"Create {len(spec.tests)} tests")
+    log.explain_topic(f"Filtering tests with {test_filter}")
+    tests = [test for test in spec.tests if filter_with_glob(test.title, test_filter)]
+    log.status("[bold cyan]", "Create", f"Selected {len(tests)} test(s) after filtering")
 
-    for index, test in list(enumerate(spec.tests)):
-        log.status("[bold cyan]", "Create", f"Adding test {index + 1}")
-        await add_test(
-            interactor,
-            await interactor.select_page(ilias_folder),
-            test
-        )
+    target_folders = await ilias_glob(interactor, await interactor.select_page(ilias_folder), replicate_glob)
+    log.status("[bold cyan]", "Create", f"Selected {len(target_folders)} folder(s) after expanding globs")
+
+    for path, page in target_folders:
+        log.status("[cyan]", "Create", f"Creating tests in {fmt_path(path)}")
+        for index, test in list(enumerate(tests)):
+            log.status("[bold cyan]", "Create", f"  Adding test {index + 1}", f"[bright_black]({test.title})")
+            await add_test(
+                interactor,
+                page,
+                test,
+                indent=" " * 4
+            )
 
 
 async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
@@ -95,7 +105,7 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
     elif publish is not None:
         log.status("[bold cyan]", "Passes", f"Changing test status to {'online' if publish else 'offline'}")
         tab = await interactor.select_tab(test_page, "Einstellungen")
-        test = tab.get_test_reconstruct_from_properties(Path(""), [])
+        test = tab.get_test_reconstruct_from_properties([])
         await interactor.configure_test(
             settings_page=tab,
             title=test.title,
@@ -130,7 +140,27 @@ def main():
 
     create = subparsers.add_parser("create", help="Creates tests in ILIAS based on a yml spec")
     create.add_argument("spec", metavar="FILE", type=Path, help="The spec file to use")
-    create.add_argument("ilias_folder", metavar="URL", type=str, help="The folder to place the test in")
+    create.add_argument(
+        "ilias_folder",
+        metavar="URL",
+        type=str,
+        help="The folder to place the test in. Acts as the base folder if '--replicate' is given"
+    )
+    create.add_argument(
+        "--replicate",
+        metavar="GLOB",
+        type=str,
+        help="An optional glob defining all folders where you want the test to be placed at. "
+             "Defaults to '*'",
+        default="*"
+    )
+    create.add_argument(
+        "--tests",
+        metavar="GLOB",
+        type=str,
+        help="Selects a subset of tests from the spec. Matched against the title. Default to '*'",
+        default="*"
+    )
 
     pass_manager = subparsers.add_parser("passes", help="Helper for users' test passes")
     pass_manager.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")

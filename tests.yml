@@ -43,10 +43,10 @@ questions:
       - type: "text"
         text: |
           Each correct answer nets you 0.5 points, not ticked is 0 and ticked but wrong is -0.5
-
+      - type: "image"
+        path: "/home/i_al_istannen/WALLPAPERS/Xorg_Still_Working_Blue.png"
 tests:
   first:
-    path: "."
     title: "hello there"
     description: "General kenobi"
     intro_text: |
