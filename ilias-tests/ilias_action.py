@@ -181,14 +181,18 @@ class IliasInteractor:
         }
         url, extra_data = settings_page.get_test_settings_change_data()
 
+        post_data = data.copy()
+        for extra in extra_data:
+            if extra.disabled:
+                post_data.pop(extra.name, None)
+                continue
+            if extra.name not in post_data:
+                post_data[extra.name] = extra.value
+
         def build_form_data():
             form_data = aiohttp.FormData()
-            for key, val in data.items():
+            for key, val in post_data.items():
                 form_data.add_field(key, val)
-
-            for key, val in extra_data.items():
-                if key not in data:
-                    form_data.add_field(key, val)
 
             form_data.add_field(
                 name="tile_image",
@@ -230,9 +234,12 @@ class IliasInteractor:
         }
 
         url, defaults = edit_page.get_test_question_finalize_data()
-        for key, val in defaults.items():
-            if key not in post_data:
-                post_data[key] = val
+        for extra in defaults:
+            if extra.disabled:
+                post_data.pop(extra.name, None)
+                continue
+            if extra.name not in post_data:
+                post_data[extra.name] = extra.value
 
         def build_form_data():
             form_data = aiohttp.FormData()

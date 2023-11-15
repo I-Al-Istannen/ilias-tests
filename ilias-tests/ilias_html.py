@@ -2,6 +2,7 @@ import datetime
 import random
 import re
 import string
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, cast, Callable, Awaitable
 
@@ -13,6 +14,19 @@ from bs4 import BeautifulSoup
 
 from .spec import (QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice, PageDesignBlock,
                    PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode, IliasTest, TestQuestion)
+
+
+@dataclass
+class ExtraFormData:
+    name: str
+    value: str
+    disabled: bool
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        return self.name == other.name
 
 
 class ExtendedIliasPage(IliasPage):
@@ -52,13 +66,13 @@ class ExtendedIliasPage(IliasPage):
 
         return result
 
-    def get_test_settings_change_data(self) -> tuple[str, dict[str, str]]:
+    def get_test_settings_change_data(self) -> tuple[str, set[ExtraFormData]]:
         form = self._soup.find(id="form_test_properties")
         if not form:
             raise CrawlError("Could not find properties page. Is this a settings page?")
 
         extra_values = self._get_extra_form_values(form)
-        extra_values["ilfilehash"] = form.find(id="ilfilehash")["value"]
+        extra_values.add(ExtraFormData(name="ilfilehash", value=form.find(id="ilfilehash")["value"], disabled=False))
         return self._abs_url_from_relative(form["action"]), extra_values
 
     def get_test_add_question_url(self):
@@ -74,7 +88,7 @@ class ExtendedIliasPage(IliasPage):
         """Enter question editor by selecting its type and information."""
         return self._form_target_from_button("cmd[executeCreateQuestion]")[0]
 
-    def get_test_question_finalize_data(self) -> tuple[str, dict[str, str]]:
+    def get_test_question_finalize_data(self) -> tuple[str, set[ExtraFormData]]:
         """Url for finalizing the question creation."""
         url, btn, form = self._form_target_from_button("cmd[saveReturn]")
         return url, self._get_extra_form_values(form)
@@ -84,12 +98,26 @@ class ExtendedIliasPage(IliasPage):
         return self._form_target_from_button("cmd[create_src]")[0]
 
     @staticmethod
-    def _get_extra_form_values(form: bs4.Tag):
-        extra_values = {}
+    def _get_extra_form_values(form: bs4.Tag) -> set[ExtraFormData]:
+        extra_values = set()
         for inpt in form.find_all(name="input", attrs={"required": "required"}):
-            extra_values[inpt["name"]] = inpt.get("value", "")
+            extra_values.add(ExtraFormData(
+                name=inpt["name"],
+                value=inpt.get("value", ""),
+                disabled=inpt.get("disabled", None) is not None
+            ))
         for select in form.find_all(name="select"):
-            extra_values[select["name"]] = select.find(name="option", attrs={"selected": "selected"}).get("value", "")
+            extra_values.add(ExtraFormData(
+                name=select["name"],
+                value=select.find(name="option", attrs={"selected": "selected"}).get("value", ""),
+                disabled=select.get("disabled", None) is not None
+            ))
+
+        for inpt in form.find_all(name="input", attrs={"disabled": "disabled"}):
+            extra_values.add(ExtraFormData(name=inpt["name"], value="", disabled=True))
+        for select in form.find_all(name="select", attrs={"disabled": "disabled"}):
+            extra_values.add(ExtraFormData(name=select["name"], value="", disabled=True))
+
         return extra_values
 
     def _form_target_from_button(self, button_name: str):
