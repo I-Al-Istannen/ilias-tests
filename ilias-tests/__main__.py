@@ -97,28 +97,44 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
     end_passes: bool = args.end_passes
     publish: bool = args.publish
     test_url: str = args.test_url
-    test_page = await interactor.select_page(test_url)
+    replicate_glob: str = args.replicate
 
-    if end_passes:
-        log.status("[bold cyan]", "Passes", "Ending passes")
-        await interactor.end_all_user_passes(test_page)
-    elif publish is not None:
-        log.status("[bold cyan]", "Passes", f"Changing test status to {'online' if publish else 'offline'}")
-        tab = await interactor.select_tab(test_page, "Einstellungen")
-        test = tab.get_test_reconstruct_from_properties([])
-        await interactor.configure_test(
-            settings_page=tab,
-            title=test.title,
-            description=test.description,
-            intro_text=test.intro_text,
-            starting_time=test.starting_time,
-            ending_time=test.ending_time,
-            number_of_tries=test.number_of_tries,
-            online=publish
-        )
-    else:
+    if not (end_passes or publish is not None):
         log.warn("Nothing to do, exiting")
         return
+
+    target_page = await interactor.select_page(test_url)
+    if replicate_glob:
+        log.explain_topic(f"Resolving globs for {replicate_glob!r} on {target_page}")
+        target_elements = await ilias_glob(interactor, target_page, replicate_glob)
+    else:
+        target_elements = [PurePath("test"), target_page]
+
+    if end_passes:
+        log.status("[bold cyan]", "Passes", f"Ending passes for {len(target_elements)} test(s)")
+        for path, test_page in target_elements:
+            log.status("[cyan]", "Passes", f"  Working on {fmt_path(path)}")
+            await interactor.end_all_user_passes(test_page, indent=" " * 8)
+    elif publish is not None:
+        log.status(
+            "[bold cyan]",
+            "Passes",
+            f"Changing test status to {'online' if publish else 'offline'} for {len(target_elements)} test(s)"
+        )
+        for path, test_page in target_elements:
+            log.status("[cyan]", "Passes", f"  Working on {fmt_path(path)}")
+            tab = await interactor.select_tab(test_page, "Einstellungen")
+            test = tab.get_test_reconstruct_from_properties([])
+            await interactor.configure_test(
+                settings_page=tab,
+                title=test.title,
+                description=test.description,
+                intro_text=test.intro_text,
+                starting_time=test.starting_time,
+                ending_time=test.ending_time,
+                number_of_tries=test.number_of_tries,
+                online=publish
+            )
     log.status("[bold cyan]", "Passes", "Done")
 
 
@@ -166,7 +182,17 @@ def main():
     pass_manager.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")
     pass_manager.add_argument('--publish', action=argparse.BooleanOptionalAction, help="Sets the test publish status")
     pass_manager.add_argument(
-        "--test-url", type=str, metavar="URL", help="The URL of the test to work on", required=True
+        "--test-url",
+        type=str,
+        metavar="URL",
+        help="The URL of the test to work on, or a folder if combined with '--replicate'",
+        required=True
+    )
+    pass_manager.add_argument(
+        "--replicate",
+        metavar="GLOB",
+        type=str,
+        help="An optional glob defining all tests you want to be affected, if the test url is a folder",
     )
 
     args = parser.parse_args()
