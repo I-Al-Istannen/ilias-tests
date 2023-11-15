@@ -59,7 +59,7 @@ async def run_slurp(interactor: IliasInteractor, args: argparse.Namespace):
         file.write(dump_tests_to_yml(tests))
 
 
-async def run_upload(interactor: IliasInteractor, args: argparse.Namespace):
+async def run_create(interactor: IliasInteractor, args: argparse.Namespace):
     spec_path: Path = args.spec
     if not spec_path.exists():
         log.print(f"[bold red]Spec file {fmt_path(spec_path)} does not exist")
@@ -76,7 +76,7 @@ async def run_upload(interactor: IliasInteractor, args: argparse.Namespace):
         log.status("[bold cyan]", "Create", f"Adding test {index + 1}")
         await add_test(
             interactor,
-            ilias_folder,
+            await interactor.select_page(ilias_folder),
             test
         )
 
@@ -104,7 +104,7 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
             starting_time=test.starting_time,
             ending_time=test.ending_time,
             number_of_tries=test.number_of_tries,
-            online=(publish)
+            online=publish
         )
     else:
         log.warn("Nothing to do, exiting")
@@ -150,7 +150,7 @@ def main():
         case "slurp":
             run_command = run_slurp
         case "create":
-            run_command = run_upload
+            run_command = run_create
         case "passes":
             run_command = run_passes
         case _:

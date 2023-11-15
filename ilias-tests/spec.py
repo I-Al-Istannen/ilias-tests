@@ -2,7 +2,7 @@ import abc
 import datetime
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import PurePath, Path
+from pathlib import Path
 from typing import Optional, Any
 
 import yaml
@@ -298,8 +298,6 @@ class QuestionSingleChoice(TestQuestion):
 
 @dataclass
 class IliasTest:
-    path: PurePath
-
     title: str
     description: str
     intro_text: str
@@ -311,7 +309,6 @@ class IliasTest:
 
     def serialize(self, questions_title_to_id: dict[str, str]) -> dict[str, Any]:
         return {
-            "path": str(self.path),
             "title": self.title,
             "description": self.description,
             "intro_text": self.intro_text,
@@ -326,7 +323,6 @@ class IliasTest:
         start_time = yml["starting_time"]
         end_time = yml["ending_time"]
         return IliasTest(
-            path=PurePath(yml["path"]),
             title=yml["title"],
             description=yml["description"],
             intro_text=yml["intro_text"],

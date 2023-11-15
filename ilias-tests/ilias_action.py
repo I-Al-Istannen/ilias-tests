@@ -95,9 +95,8 @@ class IliasInteractor:
                 raise CrawlError(f"Could not find folder {part!r} in {fmt_path(path)}")
         return page
 
-    async def create_test(self, folder_url: str, title: str, description: str) -> ExtendedIliasPage:
-        log.explain_topic(f"Creating test '{title}' in '{folder_url}'")
-        folder = await self._get_extended_page(folder_url)
+    async def create_test(self, folder: ExtendedIliasPage, title: str, description: str) -> ExtendedIliasPage:
+        log.explain_topic(f"Creating test '{title}' in '{folder.url()}'")
         create_url = folder.get_test_create_url()
         if not create_url:
             raise CrawlError("Could not find test create URL")

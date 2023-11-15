@@ -11,13 +11,10 @@ from .ilias_html import ExtendedIliasPage
 from .spec import IliasTest, TestQuestion
 
 
-async def add_test(interactor: IliasInteractor, base_folder_url: str, test: IliasTest):
-    log.status("[cyan]", "Create", f"Navigating to folder {fmt_path(test.path)}")
-    root_page = await interactor.navigate_to_folder(base_folder_url, test.path)
-
+async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test: IliasTest):
     log.status("[cyan]", "Create", "Creating Ilias object")
     test_page = await interactor.create_test(
-        root_page.url(),
+        folder,
         test.title,
         test.description
     )
