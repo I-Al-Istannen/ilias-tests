@@ -108,7 +108,7 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
         log.explain_topic(f"Resolving globs for {replicate_glob!r} on {target_page}")
         target_elements = await ilias_glob(interactor, target_page, replicate_glob)
     else:
-        target_elements = [PurePath("test"), target_page]
+        target_elements = [(PurePath("test"), target_page)]
 
     if end_passes:
         log.status("[bold cyan]", "Passes", f"Ending passes for {len(target_elements)} test(s)")

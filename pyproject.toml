@@ -10,3 +10,11 @@ requires-python = ">= 3.10"
 
 [project.scripts]
 ilias-tests = "ilias_tests.__main__:main"
+
+[[tool.mypy.overrides]]
+module = "PFERD.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bs4.*"
+ignore_missing_imports = true

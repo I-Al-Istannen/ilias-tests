@@ -4,7 +4,7 @@ import fnmatch
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 import yaml
 from PFERD.crawl import CrawlError
@@ -164,7 +164,7 @@ class TestQuestion(abc.ABC):
         self.question_type = question_type
         self.page_design = page_design
 
-    def get_options(self) -> dict[str, str]:
+    def get_options(self) -> dict[str, Union[str, Path]]:
         return {
             "title": self.title,
             "author": self.author,
@@ -209,7 +209,7 @@ class QuestionFreeFormText(TestQuestion):
         super().__init__(title, author, summary, question_html, QuestionType.FREE_FORM_TEXT, page_design)
         self.points = points
 
-    def get_options(self) -> dict[str, str]:
+    def get_options(self) -> dict[str, Union[str, Path]]:
         return {
             **super().get_options(),
             "scoring_mode": "non",  # manual
@@ -238,7 +238,7 @@ class QuestionUploadFile(TestQuestion):
         self.allowed_extensions = allowed_extensions
         self.max_size_bytes = max_size_bytes
 
-    def get_options(self) -> dict[str, str]:
+    def get_options(self) -> dict[str, Union[str, Path]]:
         return {
             **super().get_options(),
             "allowedextensions": ",".join(self.allowed_extensions),
@@ -267,11 +267,11 @@ class QuestionSingleChoice(TestQuestion):
         self.shuffle = shuffle
         self.answers = answers
 
-    def get_options(self) -> dict[str, str]:
+    def get_options(self) -> dict[str, Union[str, Path]]:
         # choice[answer][0]
         # choice[image][0]"; filename="", octet-stream
         # choice[points][0]
-        answer_options = {}
+        answer_options: dict[str, Union[str, Path]] = {}
         for index, (answer, points) in enumerate(self.answers):
             answer_options[f"choice[answer][{index}]"] = answer
             answer_options[f"choice[image][{index}]"] = Path("")

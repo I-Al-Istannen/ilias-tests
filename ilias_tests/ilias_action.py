@@ -263,7 +263,7 @@ class IliasInteractor:
         log.explain(str(ids))
         question_to_position = {}
         for index, title in enumerate(title_order):
-            question_to_position[ids[title]] = index
+            question_to_position[ids[title]] = str(index)
 
         url, data = questions_tab.get_test_question_save_order_data(question_to_position)
         await self._post_authenticated(

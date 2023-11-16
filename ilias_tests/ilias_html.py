@@ -127,7 +127,7 @@ class ExtendedIliasPage(IliasPage):
         form = btn.find_parent(name="form")
         return self._abs_url_from_relative(form["action"]), btn, form
 
-    def get_test_question_after_values(self):
+    def get_test_question_after_values(self) -> dict[str, str]:
         position_select = self._soup.find(id="position")
         if not position_select:
             raise CrawlError("Could not find element")
@@ -258,9 +258,11 @@ class ExtendedIliasPage(IliasPage):
             if "il.copg.editor.init" in text:
                 candidates = [line.strip() for line in text.splitlines() if "il.copg.editor.init" in line]
                 if not candidates:
-                    raise CrawlError("Found no init call canidate")
+                    raise CrawlError("Found no init call candidate")
                 init_call = candidates[0]
                 match = re.search(r"\('([^']+)','([^']+)'", init_call)
+                if not match:
+                    raise CrawlError(f"Editor init call has unknown format: {candidates[0]!r}")
                 return match.group(1), self._abs_url_from_relative(match.group(2))
         raise CrawlError("Could not find copg editor base url")
 
@@ -273,7 +275,7 @@ class ExtendedIliasPage(IliasPage):
         if not form:
             raise CrawlError("Could not find question preview form")
         after_start = False
-        blocks = []
+        blocks: list[PageDesignBlock] = []
 
         for child in form.children:
             if not isinstance(child, bs4.Tag):
