@@ -1,0 +1,12 @@
+[project]
+name = "ilias-tests"
+version = "0.1.0"
+dependencies = [
+  "PFERD@git+https://github.com/garmelon/pferd@master",
+  "python-slugify",
+  "pyyaml"
+]
+requires-python = ">= 3.10"
+
+[project.scripts]
+ilias-tests = "ilias_tests.__main__:main"

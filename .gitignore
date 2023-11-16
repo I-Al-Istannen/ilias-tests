@@ -1,3 +1,6 @@
 /.idea/
 /.cookies
 *.pyc
+/.venv/
+/*.egg-info
+/build
