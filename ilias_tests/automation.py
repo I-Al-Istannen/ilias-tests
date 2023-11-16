@@ -8,7 +8,7 @@ from slugify import slugify
 
 from .ilias_action import IliasInteractor
 from .ilias_html import ExtendedIliasPage
-from .spec import IliasTest, TestQuestion, filter_with_glob
+from .spec import IliasTest, TestQuestion, filter_with_regex
 
 
 async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test: IliasTest, indent: str = ""):
@@ -35,7 +35,8 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
 
     log.explain_topic("Adding questions")
     for index, question in enumerate(test.questions):
-        log.status("[bold cyan]", "Create", f"{indent}Adding question {index + 1}", f"[bright_black]({question.title!r})")
+        log.status("[bold cyan]", "Create", f"{indent}Adding question {index + 1}",
+                   f"[bright_black]({question.title!r})")
         await interactor.add_question(tab_page, question)
 
     log.explain("Navigating to questions")
@@ -103,19 +104,23 @@ def _download_files(interactor: IliasInteractor, title: str, aux_path: Path) -> 
     return inner
 
 
-async def ilias_glob(
-    interactor: IliasInteractor, root: ExtendedIliasPage, glob: str
+async def ilias_glob_regex(
+    interactor: IliasInteractor, root: ExtendedIliasPage, regex: str
 ) -> list[tuple[PurePath, ExtendedIliasPage]]:
-    """Returns all elements matching the given glob pattern, starting at the given root."""
+    """
+    Returns all elements matching the given hierarchical regex pattern, starting at the given root.
+    The pattern must be glob-like, i.e. 'top_level/second_level/third/...'. Each time a directory is entered, the next
+    pattern is picked. For example: The pattern 'foo/bar' matches the file 'bar' in folder 'foo'.
+    """
     urls_to_page = {}
-    for path, page in await _find_matching_elements(interactor, root, PurePath("."), glob):
+    for path, page in await _find_matching_elements(interactor, root, PurePath("."), regex):
         urls_to_page[page.url()] = (path, page)
 
     return list(urls_to_page.values())
 
 
 async def _find_matching_elements(
-    interactor: IliasInteractor, root: ExtendedIliasPage, root_path: PurePath, glob: Optional[str]
+    interactor: IliasInteractor, root: ExtendedIliasPage, root_path: PurePath, regex: Optional[str]
 ) -> list[tuple[PurePath, ExtendedIliasPage]]:
     # foo/*/bar
     # .
@@ -124,19 +129,19 @@ async def _find_matching_elements(
     #      `- bar
     #    `- baz
     #      `- bar
-    # try current_glob (foo) against "foo" -> pass
-    #   try current_glob (*) against "hey" -> pass
-    #     try current_glob (bar) against "bar" -> pass
+    # try current_regex (foo) against "foo" -> pass
+    #   try current_regex (*) against "hey" -> pass
+    #     try current_regex (bar) against "bar" -> pass
     #       try None against "bar" -> return bar
 
-    if not glob:
+    if not regex:
         return [(root_path, root)]
 
-    current_glob, next_glob = _strip_first_path_segment(glob)
+    current_regex, next_glob = _strip_first_path_segment(regex)
     matching = []
 
     # Filter all before so the log output is nicer
-    for child in [child for child in root.get_child_elements() if _matches_glob_part(child.name, glob)]:
+    for child in [child for child in root.get_child_elements() if _matches_regex_part(child.name, regex)]:
         child_page = await interactor.select_page(child.url)
         child_path = root_path / _sanitize_path_name(child.name)
         matching.extend(await _find_matching_elements(interactor, child_page, child_path, next_glob))
@@ -144,9 +149,9 @@ async def _find_matching_elements(
     return matching
 
 
-def _matches_glob_part(to_test: str, glob: str):
-    glob_start_segment, _ = _strip_first_path_segment(glob)
-    return filter_with_glob(to_test, glob_start_segment)
+def _matches_regex_part(to_test: str, glob_regex: str):
+    regex_start_segment, _ = _strip_first_path_segment(glob_regex)
+    return filter_with_regex(to_test, regex_start_segment)
 
 
 def _strip_first_path_segment(path_string: str) -> tuple[str, Optional[str]]:

@@ -9,9 +9,9 @@ from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
-from .automation import slurp_tests_from_folder, add_test, ilias_glob
+from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex
 from .ilias_action import IliasInteractor
-from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_glob
+from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex
 
 
 def load_interactor(args: argparse.Namespace):
@@ -65,18 +65,20 @@ async def run_create(interactor: IliasInteractor, args: argparse.Namespace):
         log.print(f"[bold red]Spec file {fmt_path(spec_path)} does not exist")
         exit(1)
     ilias_folder: str = args.ilias_folder
-    replicate_glob: str = args.replicate
-    test_filter: str = args.tests
+    replicate_glob_regex: str = args.replicate
+    test_filter_regex: str = args.tests
 
     log.status("[bold magenta]", "Setup", "Loading spec")
     log.explain_topic(f"Loading spec from {fmt_path(spec_path)}")
     spec = load_spec_from_file(spec_path)
 
-    log.explain_topic(f"Filtering tests with {test_filter}")
-    tests = [test for test in spec.tests if filter_with_glob(test.title, test_filter)]
+    log.explain_topic(f"Filtering tests with {test_filter_regex!r}")
+    tests = [test for test in spec.tests if filter_with_regex(test.title, test_filter_regex)]
     log.status("[bold cyan]", "Create", f"Selected {len(tests)} test(s) after filtering")
 
-    target_folders = await ilias_glob(interactor, await interactor.select_page(ilias_folder), replicate_glob)
+    target_folders = await ilias_glob_regex(
+        interactor, await interactor.select_page(ilias_folder), replicate_glob_regex
+    )
     log.status("[bold cyan]", "Create", f"Selected {len(target_folders)} folder(s) after expanding globs")
 
     for path, page in target_folders:
@@ -97,16 +99,16 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
     end_passes: bool = args.end_passes
     publish: bool = args.publish
     test_url: str = args.test_url
-    replicate_glob: str = args.replicate
+    replicate_glob_regex: str = args.replicate
 
     if not (end_passes or publish is not None):
         log.warn("Nothing to do, exiting")
         return
 
     target_page = await interactor.select_page(test_url)
-    if replicate_glob:
-        log.explain_topic(f"Resolving globs for {replicate_glob!r} on {target_page}")
-        target_elements = await ilias_glob(interactor, target_page, replicate_glob)
+    if replicate_glob_regex:
+        log.explain_topic(f"Resolving globs for {replicate_glob_regex!r} on {target_page}")
+        target_elements = await ilias_glob_regex(interactor, target_page, replicate_glob_regex)
     else:
         target_elements = [(PurePath("test"), target_page)]
 
@@ -164,18 +166,18 @@ def main():
     )
     create.add_argument(
         "--replicate",
-        metavar="GLOB",
+        metavar="REGEX",
         type=str,
-        help="An optional glob defining all folders where you want the test to be placed at. "
-             "Defaults to '*'",
-        default="*"
+        help="An optional glob-like regex (directories separated by '/') defining all folders where you want the test"
+             " to be placed at. Defaults to '.*'",
+        default=".*"
     )
     create.add_argument(
         "--tests",
-        metavar="GLOB",
+        metavar="REGEX",
         type=str,
-        help="Selects a subset of tests from the spec. Matched against the title. Default to '*'",
-        default="*"
+        help="Selects a subset of tests from the spec. Matched against the title. Defaults to '.*'",
+        default=".*"
     )
 
     pass_manager = subparsers.add_parser("passes", help="Helper for users' test passes")
@@ -190,9 +192,10 @@ def main():
     )
     pass_manager.add_argument(
         "--replicate",
-        metavar="GLOB",
+        metavar="REGEX",
         type=str,
-        help="An optional glob defining all tests you want to be affected, if the test url is a folder",
+        help="An optional glob-like regex (directories separated by '/') defining all tests you want to be affected, "
+             "if the test url is a folder",
     )
 
     args = parser.parse_args()

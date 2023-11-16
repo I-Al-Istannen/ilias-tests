@@ -1,6 +1,6 @@
 import abc
 import datetime
-import fnmatch
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -385,7 +385,7 @@ def dump_tests_to_yml(tests: list[IliasTest]) -> str:
     )
 
 
-def filter_with_glob(element: str, glob: str) -> bool:
-    result = fnmatch.fnmatch(element, glob)
-    log.explain(f"Keep {element!r} for glob {glob!r}? {'Yes' if result else 'No'}")
+def filter_with_regex(element: str, regex: str) -> bool:
+    result = re.fullmatch(regex, element) is not None
+    log.explain(f"Keep {element!r} for regex {regex!r}? {'Yes' if result else 'No'}")
     return result
