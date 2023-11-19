@@ -19,7 +19,7 @@ from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
 
 from .ilias_html import ExtendedIliasPage, random_ilfilehash
-from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode
+from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode, TestTab
 
 
 class IliasInteractor:
@@ -114,9 +114,12 @@ class IliasInteractor:
             request_succeeded=_auth_redirected_to_test_page
         )
 
-    async def select_tab(self, page: ExtendedIliasPage, name: str):
-        log.explain_topic(f"Selecting tab {name}")
-        return await self._get_extended_page(page.get_test_tabs()[name])
+    async def select_tab(self, page: ExtendedIliasPage, target_tab: TestTab):
+        log.explain_topic(f"Selecting tab {target_tab.name.lower()}")
+        for name, url in page.get_test_tabs().items():
+            if name in target_tab.value:
+                return await self._get_extended_page(url)
+        raise CrawlError(f"Could not find a match for tab {target_tab.name} in {page.get_test_tabs()}")
 
     async def select_page(self, url: str):
         log.explain_topic("Selecting ilias page")
@@ -440,7 +443,7 @@ class IliasInteractor:
         raise CrawlError(f"download_file failed even after authenticating on {url!r}")
 
     async def end_all_user_passes(self, test_page: ExtendedIliasPage, indent: str = ""):
-        dashboard = await self.select_tab(test_page, "Dashboard")
+        dashboard = await self.select_tab(test_page, TestTab.DASHBOARD)
         url = dashboard.get_test_dashboard_end_all_passes_url()
 
         if not url:

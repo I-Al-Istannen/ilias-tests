@@ -18,6 +18,12 @@ class QuestionType(Enum):
     FILE_UPLOAD = 14
 
 
+class TestTab(Enum):
+    SETTINGS = ("Settings", "Einstellungen")
+    DASHBOARD = ("Dashboard",)
+    QUESTIONS = ("Questions", "Fragen")
+
+
 def str_presenter(dumper, data):
     """
     Configures yaml for dumping multiline strings

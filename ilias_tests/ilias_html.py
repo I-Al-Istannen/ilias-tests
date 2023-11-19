@@ -157,6 +157,11 @@ class ExtendedIliasPage(IliasPage):
         result = []
         for row in table.find(name="tbody").find_all(name="tr"):
             order_td = row.find(name="td", attrs={"name": lambda x: x and x.startswith("order[")})
+            if not order_td:
+                alert_message = ""
+                for alert in self._soup.select(".alert"):
+                    alert_message += alert.getText().strip()
+                raise CrawlError(f"Could not find order column. Page-Alerts: {alert_message}")
             question_id = cast(str, order_td["name"]).replace("order[", "").replace("]", "").strip()
             result.append((question_id, row.find(name="a")))
 

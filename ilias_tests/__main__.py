@@ -11,7 +11,7 @@ from PFERD.utils import fmt_path
 
 from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex
 from .ilias_action import IliasInteractor
-from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex
+from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex, TestTab
 
 
 def load_interactor(args: argparse.Namespace):
@@ -125,7 +125,7 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
         )
         for path, test_page in target_elements:
             log.status("[cyan]", "Passes", f"  Working on {fmt_path(path)}")
-            tab = await interactor.select_tab(test_page, "Einstellungen")
+            tab = await interactor.select_tab(test_page, TestTab.SETTINGS)
             test = tab.get_test_reconstruct_from_properties([])
             await interactor.configure_test(
                 settings_page=tab,

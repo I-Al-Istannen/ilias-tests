@@ -8,7 +8,7 @@ from slugify import slugify
 
 from .ilias_action import IliasInteractor
 from .ilias_html import ExtendedIliasPage
-from .spec import IliasTest, TestQuestion, filter_with_regex
+from .spec import IliasTest, TestQuestion, filter_with_regex, TestTab
 
 
 async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test: IliasTest, indent: str = ""):
@@ -19,7 +19,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         test.description
     )
     log.status("[cyan]", "Create", f"{indent}Fetching settings")
-    tab_page = await interactor.select_tab(test_page, "Einstellungen")
+    tab_page = await interactor.select_tab(test_page, TestTab.SETTINGS)
     log.status("[cyan]", "Create", f"{indent}Configuring")
     tab_page = await interactor.configure_test(
         tab_page,
@@ -31,7 +31,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         test.number_of_tries
     )
     log.explain_topic("Navigating to questions")
-    tab_page = await interactor.select_tab(tab_page, "Fragen")
+    tab_page = await interactor.select_tab(tab_page, TestTab.QUESTIONS)
 
     log.explain_topic("Adding questions")
     for index, question in enumerate(test.questions):
@@ -40,7 +40,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         await interactor.add_question(tab_page, question)
 
     log.explain("Navigating to questions")
-    tab_page = await interactor.select_tab(tab_page, "Fragen")
+    tab_page = await interactor.select_tab(tab_page, TestTab.QUESTIONS)
 
     log.status("[cyan]", "Create", f"{indent}Reordering questions")
     await interactor.reorder_questions(tab_page, [q.title for q in test.questions])
@@ -56,7 +56,7 @@ async def slurp_tests_from_folder(interactor: IliasInteractor, folder_url: str, 
             log.explain(f"Child {child.name!r} is a test, slurping")
             log.status("[bold cyan]", "Slurp", f"Test: {child.name!r}")
             test_page = await interactor.select_page(child.url)
-            properties_page = await interactor.select_tab(test_page, "Einstellungen")
+            properties_page = await interactor.select_tab(test_page, TestTab.SETTINGS)
 
             questions = await slurp_questions_from_test(interactor, test_page, aux_path)
 
@@ -71,7 +71,7 @@ async def slurp_tests_from_folder(interactor: IliasInteractor, folder_url: str, 
 async def slurp_questions_from_test(
     interactor: IliasInteractor, test_page: ExtendedIliasPage, data_path: Path
 ) -> list[TestQuestion]:
-    question_tab = await interactor.select_tab(test_page, "Fragen")
+    question_tab = await interactor.select_tab(test_page, TestTab.QUESTIONS)
 
     elements = question_tab.get_test_question_listing()
     questions: list[TestQuestion] = []
