@@ -57,6 +57,9 @@ class IliasInteractor:
 
     def _load_cookies(self) -> None:
         log.explain_topic(f"Loading cookies from {fmt_path(self._cookie_file)}")
+        if not Path(self._cookie_file).exists():
+            log.explain("No cookie file found")
+            return
         jar: Any = http.cookies.SimpleCookie()
         with open(self._cookie_file, encoding="utf-8") as f:
             for i, line in enumerate(f):
