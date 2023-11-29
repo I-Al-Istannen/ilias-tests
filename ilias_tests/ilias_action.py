@@ -587,23 +587,24 @@ class IliasInteractor:
         the request was made. This ensures that authentication is not performed needlessly.
         """
         async with self._authentication_lock:
-            log.explain_topic("Authenticating")
-            # Another thread successfully called authenticate in-between
-            # We do not want to perform auth again, so we return here. We can
-            # assume the other thread succeeded as authenticate will throw an error
-            # if it failed and aborts the crawl process.
-            if caller_auth_id != self._authentication_id:
-                log.explain(
-                    "Authentication skipped due to auth id mismatch."
-                    "A previous authentication beat us to the race."
-                )
-                return
-            log.explain("Calling crawler-specific authenticate")
-            await self._authenticate()
-            self._authentication_id += 1
-            # Saving the cookies after the first auth ensures we won't need to re-authenticate
-            # on the next run, should this one be aborted or crash
-            self._save_cookies()
+            with log.show_progress():
+                log.explain_topic("Authenticating")
+                # Another thread successfully called authenticate in-between
+                # We do not want to perform auth again, so we return here. We can
+                # assume the other thread succeeded as authenticate will throw an error
+                # if it failed and aborts the crawl process.
+                if caller_auth_id != self._authentication_id:
+                    log.explain(
+                        "Authentication skipped due to auth id mismatch."
+                        "A previous authentication beat us to the race."
+                    )
+                    return
+                log.explain("Calling crawler-specific authenticate")
+                await self._authenticate()
+                self._authentication_id += 1
+                # Saving the cookies after the first auth ensures we won't need to re-authenticate
+                # on the next run, should this one be aborted or crash
+                self._save_cookies()
 
     async def _authenticate(self) -> None:
         await self._shibboleth_auth.login(self.session)
