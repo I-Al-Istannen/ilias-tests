@@ -349,6 +349,20 @@ class ExtendedIliasPage(IliasPage):
             return last["id"].removeprefix("pc")
         return ""
 
+    def get_scoring_settings_url(self):
+        link = self._soup.find(name="a", attrs={"href": lambda x: x and "ilobjtestsettingsscoringresultsgui" in x})
+        if not link:
+            raise CrawlError("Could not find scoring settings url on test page")
+        return self._abs_url_from_link(link)
+
+    def get_test_scoring_settings_change_data(self) -> tuple[str, set[ExtraFormData]]:
+        form = self._soup.find(id="form_test_scoring_results")
+        if not form:
+            raise CrawlError("Could not find scoring form. Is this a settings (scoring) page?")
+
+        extra_values = self._get_extra_form_values(form)
+        return self._abs_url_from_relative(form["action"]), extra_values
+
     @staticmethod
     def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:
         if ExtendedIliasPage.page_has_failure_alert(page):

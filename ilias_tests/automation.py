@@ -30,6 +30,8 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         test.ending_time,
         test.number_of_tries
     )
+    log.status("[cyan]", "Create", f"{indent}Configure scoring settings so people see their results")
+    tab_page = await interactor.set_test_scoring(tab_page)
     log.explain_topic("Navigating to questions")
     tab_page = await interactor.select_tab(tab_page, TestTab.QUESTIONS)
 

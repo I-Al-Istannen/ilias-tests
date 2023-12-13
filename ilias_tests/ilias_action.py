@@ -139,6 +139,7 @@ class IliasInteractor:
         number_of_tries: int,
         online: bool = False
     ):
+        """Configures the base test properties."""
         log.explain_topic(f"Configuring test {title}")
         base_params = {
             "cmd[saveForm]": "Speichern",
@@ -211,6 +212,30 @@ class IliasInteractor:
         return await self._post_authenticated(
             url=url,
             data=build_form_data
+        )
+
+    async def set_test_scoring(self, settings_page: ExtendedIliasPage) -> ExtendedIliasPage:
+        log.explain_topic(f"Configuring test scoring settings")
+        page = await self._get_extended_page(settings_page.get_scoring_settings_url())
+
+        url, extra_data = page.get_test_scoring_settings_change_data()
+        post_data = {
+            "results_access_enabled": "1",
+            "results_access_setting": "1",
+            "solution_feedback": "1",
+            "solution_printview": "1",
+            "cmd[saveForm]": "Speichern"
+        }
+        for extra in extra_data:
+            if extra.disabled:
+                post_data.pop(extra.name, None)
+                continue
+            if extra.name not in post_data:
+                post_data[extra.name] = extra.value
+
+        return await self._post_authenticated(
+            url=url,
+            data=post_data
         )
 
     async def add_question(
