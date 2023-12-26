@@ -175,16 +175,22 @@ class IliasInteractor:
         }
         run_user_params = {
             "chb_use_previous_answers": "1",  # show answers from previous run
-            "postpone": "0"  # do not move unanswered questions to the end
+            "postpone": "0",  # do not move unanswered questions to the end
+            "list_of_questions": "1",  # show a list of questions in a sidebar
+            "list_of_questions_options[]": ["chb_list_of_questions_end", "chb_list_of_questions_with_description"],
+        }
+        test_finish_params = {
+            "enable_examview": "1",  # Show answers before test submission
         }
         other_params = {
             "autosave_ival": "30",
-            "instant_feedback_trigger": "0"
+            "instant_feedback_trigger": "0",
         }
 
         data = {
             **base_params, **activation_params, **intro_params, **access_params,
-            **run_test_params, **run_question_params, **run_user_params, **other_params
+            **run_test_params, **run_question_params, **run_user_params,
+            **test_finish_params, **other_params
         }
         url, extra_data = settings_page.get_test_settings_change_data()
 
@@ -199,7 +205,11 @@ class IliasInteractor:
         def build_form_data():
             form_data = aiohttp.FormData()
             for key, val in post_data.items():
-                form_data.add_field(key, val)
+                if isinstance(val, list):
+                    for elem in val:
+                        form_data.add_field(key, elem)
+                else:
+                    form_data.add_field(key, val)
 
             form_data.add_field(
                 name="tile_image",
