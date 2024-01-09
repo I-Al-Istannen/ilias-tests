@@ -230,10 +230,20 @@ class IliasInteractor:
 
         url, extra_data = page.get_test_scoring_settings_change_data()
         post_data = {
-            "results_access_enabled": "1",
-            "results_access_setting": "1",
-            "solution_feedback": "1",
-            "solution_printview": "1",
+            "results_access_enabled": "1",  # allow students to see test results
+            "results_access_setting": "1",  # show them the results directly after finishing the run
+
+            "grading_status": "1",  # show buttons in "detailed results" table to navigate to question in list or detail
+            "grading_mark": "1",  # same observable behaviour
+
+            "solution_feedback": "1",  # show tutor feedback, is not enough alone. Just allows it to be shown.
+            "pass_details": "1",  # show "detailed results" table and link
+
+            "solution_printview": "1",  # show all results with tutor feedback below the "detailed results" table
+            # "solution_compare": "1",  # and show the "best solution" there
+
+            "solution_details": "1",  # show direct link to question with tutor feedback in the "detailed results" table
+            # "print_bs_with_res": "1",  # and show the "best solution" in the "detailed results" table
             "cmd[saveForm]": "Speichern"
         }
         for extra in extra_data:
