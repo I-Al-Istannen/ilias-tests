@@ -224,7 +224,7 @@ class IliasInteractor:
             data=build_form_data
         )
 
-    async def set_test_scoring(self, settings_page: ExtendedIliasPage) -> ExtendedIliasPage:
+    async def configure_test_scoring(self, settings_page: ExtendedIliasPage) -> ExtendedIliasPage:
         log.explain_topic(f"Configuring test scoring settings")
         page = await self._get_extended_page(settings_page.get_scoring_settings_url())
 

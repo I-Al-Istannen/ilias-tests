@@ -94,38 +94,57 @@ async def run_create(interactor: IliasInteractor, args: argparse.Namespace):
 
 
 async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
-    log.status("[bold magenta]", "Setup", "Initializing Passmanager")
+    log.status("[bold magenta]", "Setup", "Initializing")
 
     end_passes: bool = args.end_passes
-    publish: bool = args.publish
-    test_url: str = args.test_url
     replicate_glob_regex: str = args.replicate
 
-    if not (end_passes or publish is not None):
+    if not end_passes:
         log.warn("Nothing to do, exiting")
         return
 
-    target_page = await interactor.select_page(test_url)
+    target_page = await interactor.select_page(args.test_or_folder)
     if replicate_glob_regex:
         log.explain_topic(f"Resolving globs for {replicate_glob_regex!r} on {target_page}")
         target_elements = await ilias_glob_regex(interactor, target_page, replicate_glob_regex)
     else:
         target_elements = [(PurePath("test"), target_page)]
 
-    if end_passes:
-        log.status("[bold cyan]", "Passes", f"Ending passes for {len(target_elements)} test(s)")
-        for path, test_page in target_elements:
-            log.status("[cyan]", "Passes", f"  Working on {fmt_path(path)}")
-            await interactor.end_all_user_passes(test_page, indent=" " * 8)
-    elif publish is not None:
-        log.status(
-            "[bold cyan]",
-            "Passes",
-            f"Changing test status to {'online' if publish else 'offline'} for {len(target_elements)} test(s)"
-        )
-        for path, test_page in target_elements:
-            log.status("[cyan]", "Passes", f"  Working on {fmt_path(path)}")
-            tab = await interactor.select_tab(test_page, TestTab.SETTINGS)
+    log.status("[bold cyan]", "Passes", f"Ending passes for {len(target_elements)} test(s)")
+    for path, test_page in target_elements:
+        log.status("[cyan]", "Passes", f"  Ending passes for {fmt_path(path)}")
+        await interactor.end_all_user_passes(test_page, indent=" " * 8)
+    log.status("[bold cyan]", "Passes", "Done")
+
+
+async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
+    log.status("[bold magenta]", "Setup", "Initializing")
+
+    if not args.publish and not args.unpublish and not args.fix_result_viewing:
+        log.warn("Nothing to do, exiting")
+        return
+
+    replicate_glob_regex: str = args.replicate
+
+    target_page = await interactor.select_page(args.test_or_folder)
+    if replicate_glob_regex:
+        log.explain_topic(f"Resolving globs for {replicate_glob_regex!r} on {target_page}")
+        target_elements = await ilias_glob_regex(interactor, target_page, replicate_glob_regex)
+    else:
+        target_elements = [(PurePath("test"), target_page)]
+
+    log.status(
+        "[bold cyan]",
+        "Configure",
+        f"Configuring {len(target_elements)} test(s)"
+    )
+
+    for path, test_page in target_elements:
+        log.status("[cyan]", "Configure", f"  Working on {fmt_path(path)}")
+        tab = await interactor.select_tab(test_page, TestTab.SETTINGS)
+
+        if args.publish or args.unpublish:
+            log.status("[cyan]", "Configure", f"    {'Unpublishing' if args.unpublish else 'Publishing'} Test")
             test = tab.get_test_reconstruct_from_properties([])
             await interactor.configure_test(
                 settings_page=tab,
@@ -135,40 +154,42 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
                 starting_time=test.starting_time,
                 ending_time=test.ending_time,
                 number_of_tries=test.number_of_tries,
-                online=publish
+                online=args.publish is True
             )
-    log.status("[bold cyan]", "Passes", "Done")
+        if args.fix_result_viewing:
+            log.status("[cyan]", "Configure", f"    Fixing result viewing")
+            await interactor.configure_test_scoring(tab)
 
 
 def main():
     parser = argparse.ArgumentParser(description='The forgotten ILIAS Test API', prog="ilias-tests")
     parser.add_argument(
-        "--no-keyring", help="Do not use the system keyring to store credentials", action='store_false', dest="keyring"
+        "--no-keyring", help="do not use the system keyring to store credentials", action='store_false', dest="keyring"
     )
-    parser.add_argument("--user", type=str, required=True, help="The name of the Shibboleth user")
-    parser.add_argument("--password", type=str, help="The user's password (interactive input preferred)", default=None)
-    parser.add_argument("--explain", help="Shows more debug information", action='store_true')
-    parser.add_argument("--cookies", type=Path, help="Location of cookies file", default=Path(".cookies"))
+    parser.add_argument("--user", type=str, required=True, help="the name of the Shibboleth user")
+    parser.add_argument("--password", type=str, help="the user's password (interactive input preferred)", default=None)
+    parser.add_argument("--explain", help="shows more debug information", action='store_true')
+    parser.add_argument("--cookies", type=Path, help="location of cookies file", default=Path(".cookies"))
 
     subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
 
-    slurp = subparsers.add_parser("slurp", help="Converts an ilias test/folder to yml")
-    slurp.add_argument("url", metavar="URL", type=str, help="The URL to slurp")
-    slurp.add_argument("data_dir", metavar="PATH", type=Path, help="The output directory. Will be created")
+    slurp = subparsers.add_parser("slurp", help="convert an ilias test/folder to yml")
+    slurp.add_argument("url", metavar="URL", type=str, help="the URL to slurp")
+    slurp.add_argument("data_dir", metavar="PATH", type=Path, help="the output directory. Will be created")
 
-    create = subparsers.add_parser("create", help="Creates tests in ILIAS based on a yml spec")
-    create.add_argument("spec", metavar="FILE", type=Path, help="The spec file to use")
+    create = subparsers.add_parser("create", help="create tests in ILIAS based on a yml spec")
+    create.add_argument("spec", metavar="FILE", type=Path, help="the spec file to use")
     create.add_argument(
         "ilias_folder",
         metavar="URL",
         type=str,
-        help="The folder to place the test in. Acts as the base folder if '--replicate' is given"
+        help="the folder to place the test in. Acts as the base folder if '--replicate' is given"
     )
     create.add_argument(
         "--replicate",
         metavar="REGEX",
         type=str,
-        help="An optional glob-like regex (directories separated by '/') defining all folders where you want the test"
+        help="a glob-like regex (directories separated by '/') defining all folders where you want the test"
              " to be placed at. Defaults to '.*'",
         default=".*"
     )
@@ -176,27 +197,44 @@ def main():
         "--tests",
         metavar="REGEX",
         type=str,
-        help="Selects a subset of tests from the spec. Matched against the title. Defaults to '.*'",
+        help="selects a subset of tests from the spec. Matched against the title. Defaults to '.*'",
         default=".*"
     )
 
-    pass_manager = subparsers.add_parser("passes", help="Helper for users' test passes")
-    pass_manager.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")
-    pass_manager.add_argument('--publish', action=argparse.BooleanOptionalAction, help="Sets the test publish status")
-    pass_manager.add_argument(
-        "--test-url",
+    passes = subparsers.add_parser("passes", help="manage users' test passes")
+    passes.add_argument(
+        "test_or_folder",
         type=str,
         metavar="URL",
-        help="The URL of the test to work on, or a folder if combined with '--replicate'",
-        required=True
+        help="the URL of the test to work on, or a folder if combined with '--replicate'"
     )
-    pass_manager.add_argument(
+    passes.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")
+    passes.add_argument(
         "--replicate",
         metavar="REGEX",
         type=str,
-        help="An optional glob-like regex (directories separated by '/') defining all tests you want to be affected, "
+        help="a glob-like regex (directories separated by '/') defining all tests you want to be affected, "
              "if the test url is a folder",
     )
+
+    configure = subparsers.add_parser("configure", help="configure ILIAS tests")
+    configure.add_argument(
+        "test_or_folder",
+        type=str,
+        metavar="URL",
+        help="the URL of the test to work on, or a folder if combined with '--replicate'"
+    )
+    configure.add_argument(
+        "--replicate",
+        metavar="REGEX",
+        type=str,
+        help="a glob-like regex (directories separated by '/') defining all tests you want to be affected, "
+             "if the test url is a folder",
+    )
+    configure.add_argument("--fix-result-viewing", action="store_true", help="ends the passes for all users")
+    publish_group = configure.add_mutually_exclusive_group()
+    publish_group.add_argument("--publish", action="store_true", help="sets a tests status to online")
+    publish_group.add_argument("--unpublish", action="store_true", help="sets a tests status to offline")
 
     args = parser.parse_args()
 
@@ -212,6 +250,8 @@ def main():
             run_command = run_create
         case "passes":
             run_command = run_passes
+        case "configure":
+            run_command = run_configure
         case _:
             parser.print_help()
             exit(1)
