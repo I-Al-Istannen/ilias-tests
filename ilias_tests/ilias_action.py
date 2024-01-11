@@ -231,7 +231,7 @@ class IliasInteractor:
         url, extra_data = page.get_test_scoring_settings_change_data()
         post_data = {
             "results_access_enabled": "1",  # allow students to see test results
-            "results_access_setting": "1",  # show them the results directly after finishing the run
+            "results_access_setting": "2",  # always show results, even without finishing the run
 
             "grading_status": "1",  # show buttons in "detailed results" table to navigate to question in list or detail
             "grading_mark": "1",  # same observable behaviour
