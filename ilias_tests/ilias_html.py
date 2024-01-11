@@ -36,6 +36,21 @@ class ExtendedIliasPage(IliasPage):
     def url(self):
         return self._page_url
 
+    def is_test_page(self):
+        log.explain_topic("Verifying page is a test")
+        if "cmdClass=ilobjtestgui" in self.url():
+            log.explain("Page matched test url fragment")
+            return True
+        header = self._soup.find(id="headerimage")
+        if not header:
+            log.explain("Could not find headerimage")
+            return False
+        if header.get("alt", "").lower() == "symbol test":
+            log.explain("Alt text in header matched")
+            return True
+        log.explain("Alt text did not match")
+        return False
+
     def is_test_create_page(self):
         return "cmd=create" in self._page_url and "new_type=tst" in self._page_url
 

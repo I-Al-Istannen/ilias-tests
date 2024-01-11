@@ -113,6 +113,9 @@ async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
     log.status("[bold cyan]", "Passes", f"Ending passes for {len(target_elements)} test(s)")
     for path, test_page in target_elements:
         log.status("[cyan]", "Passes", f"  Ending passes for {fmt_path(path)}")
+        if not test_page.is_test_page():
+            log.warn("        Selected element is no test. Maybe your selector is incorrect?")
+            continue
         await interactor.end_all_user_passes(test_page, indent=" " * 8)
     log.status("[bold cyan]", "Passes", "Done")
 
@@ -141,6 +144,9 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
 
     for path, test_page in target_elements:
         log.status("[cyan]", "Configure", f"  Working on {fmt_path(path)}")
+        if not test_page.is_test_page():
+            log.warn("        Selected element is no test. Maybe your selector is incorrect?")
+            continue
         tab = await interactor.select_tab(test_page, TestTab.SETTINGS)
 
         if args.publish or args.unpublish:
