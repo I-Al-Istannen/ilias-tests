@@ -135,6 +135,14 @@ class ExtendedIliasPage(IliasPage):
                     disabled=inpt.get("disabled", None) is not None,
                 )
             )
+        for inpt in form.find_all(name="textarea", attrs={"required": "required"}):
+            extra_values.add(
+                ExtraFormData(
+                    name=inpt["name"],
+                    value=inpt.get("value", ""),
+                    disabled=inpt.get("disabled", None) is not None,
+                )
+            )
         for select in form.find_all(name="select"):
             extra_values.add(
                 ExtraFormData(
@@ -147,6 +155,8 @@ class ExtendedIliasPage(IliasPage):
         for inpt in form.find_all(name="input", attrs={"disabled": "disabled"}):
             extra_values.add(ExtraFormData(name=inpt["name"], value="", disabled=True))
         for select in form.find_all(name="select", attrs={"disabled": "disabled"}):
+            extra_values.add(ExtraFormData(name=select["name"], value="", disabled=True))
+        for select in form.find_all(name="textarea", attrs={"disabled": "disabled"}):
             extra_values.add(ExtraFormData(name=select["name"], value="", disabled=True))
 
         return extra_values
