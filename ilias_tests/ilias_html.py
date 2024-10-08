@@ -287,7 +287,7 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError(f"Unknown question type at '{self.url()}'")
 
     def get_test_question_design_page_url(self):
-        link = self._soup.find(attrs={"href": lambda x: x and "cmdClass=ilassquestionpagegui" in x})
+        link = self._soup.find(attrs={"href": lambda x: x and "cmdclass=ilassquestionpagegui" in x.lower()})
         if not link:
             raise CrawlError("Could not find page edit button")
         return self._abs_url_from_link(link)
