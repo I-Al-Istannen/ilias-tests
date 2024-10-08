@@ -118,7 +118,10 @@ class ExtendedIliasPage(IliasPage):
     def get_test_question_finalize_data(self) -> tuple[str, set[ExtraFormData]]:
         """Url for finalizing the question creation."""
         url, btn, form = self._form_target_from_button("cmd[saveReturn]")
-        return url, self._get_extra_form_values(form)
+        form_values = self._get_extra_form_values(form)
+        if filehash := self._soup.find(id="ilfilehash"):
+            form_values.add(ExtraFormData(name="ilfilehash", value=filehash.get("value"), disabled=False))
+        return url, form_values
 
     def get_test_question_design_code_submit_url(self):
         """Url for submitting a code block."""

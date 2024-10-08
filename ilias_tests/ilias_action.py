@@ -11,6 +11,7 @@ import aiohttp
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
+
 # noinspection PyProtectedMember
 from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler, _iorepeat
 from PFERD.logging import log

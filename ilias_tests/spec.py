@@ -278,6 +278,7 @@ class QuestionSingleChoice(TestQuestion):
         answer_options: dict[str, Union[str, Path]] = {}
         for index, (answer, points) in enumerate(self.answers):
             answer_options[f"choice[answer][{index}]"] = answer
+            answer_options[f"choice[answer_id][{index}]"] = "-1"
             answer_options[f"choice[image][{index}]"] = Path("")
             answer_options[f"choice[points][{index}]"] = str(points)
 
@@ -286,7 +287,7 @@ class QuestionSingleChoice(TestQuestion):
             **answer_options,
             "shuffle": "1" if self.shuffle else "0",
             "types": "0",  # single line answers for now
-            "thumb_size": "",  # image preview size. Not supported for now.
+            "thumb_size": "150",  # image preview size. Not supported for now.
         }
 
     def serialize(self) -> dict[str, Any]:
