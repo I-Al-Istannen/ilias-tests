@@ -225,19 +225,31 @@ class IliasInteractor:
         page = await self._get_extended_page(settings_page.get_scoring_settings_url())
 
         url, extra_data = page.get_test_scoring_settings_change_data()
-        post_data = {
-            "results_access_enabled": "1",  # allow students to see test results
-            "results_access_setting": "2",  # always show results, even without finishing the run
-            "grading_status": "1",  # show buttons in "detailed results" table to navigate to question in list or detail
-            "grading_mark": "1",  # same observable behaviour
-            "solution_feedback": "1",  # show tutor feedback, is not enough alone. Just allows it to be shown.
-            "pass_details": "1",  # show "detailed results" table and link
-            "solution_printview": "1",  # show all results with tutor feedback below the "detailed results" table
-            # "solution_compare": "1",  # and show the "best solution" there
-            "solution_details": "1",  # show direct link to question with tutor feedback in the "detailed results" table
-            # "print_bs_with_res": "1",  # and show the "best solution" in the "detailed results" table
-            "cmd[saveForm]": "Speichern",
+        label_values = {
+            ".+falsch beantwortete Fragen ergeben.+": "0",
+            "Das Ergebnis einer Frage kann nie weniger als 0 Punkte sein": "0",
+            "Letzten Durchlauf des Tests bewerten": "0",
+            "Eigenes Testergebnis einsehen": "checked",
+            "Nach Durchlauf des Tests": "1",
+            "Detaillierte Testergebnisse anzeigen": "checked",
+            "Note anzeigen": "checked",
+            '"Bestanden" / "Nicht bestanden" anzeigen': "checked",
+            "Bewertete Antworten als Liste": "checked",
+            "Bewertete Antworten auf Einzelseiten": "checked",
+            "Bestmögliche Lösung": "checked",
+            "Rückmeldungen": "checked",
+            "Druckbare Liste der Antworten": "checked",
+            "Länge der Bestenliste": "0",  # not used, but required
         }
+        post_data = {}
+
+        for label, value in label_values.items():
+            for name in page.get_test_scoring_name_for_label(label):
+                post_data[name] = value
+
+        for name in page.get_test_scoring_dates():
+            post_data[name] = ""
+
         for extra in extra_data:
             if extra.disabled:
                 post_data.pop(extra.name, None)

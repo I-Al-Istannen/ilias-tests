@@ -392,18 +392,38 @@ class ExtendedIliasPage(IliasPage):
         return ""
 
     def get_scoring_settings_url(self):
-        link = self._soup.find(name="a", attrs={"href": lambda x: x and "ilobjtestsettingsscoringresultsgui" in x})
+        link = self._soup.find(
+            name="a",
+            attrs={"href": lambda x: x and "ilobjtestsettingsscoringresultsgui" in x.lower()},
+        )
         if not link:
             raise CrawlError("Could not find scoring settings url on test page")
         return self._abs_url_from_link(link)
 
     def get_test_scoring_settings_change_data(self) -> tuple[str, set[ExtraFormData]]:
-        form = self._soup.find(id="form_test_scoring_results")
+        form = self._soup.select_one("form.il-standard-form")
         if not form:
             raise CrawlError("Could not find scoring form. Is this a settings (scoring) page?")
 
         extra_values = self._get_extra_form_values(form)
         return self._abs_url_from_relative(form["action"]), extra_values
+
+    def get_test_scoring_name_for_label(self, label_regex: str) -> list[str]:
+        results = []
+        for inp in self._soup.find_all(name="input"):
+            input_id = inp.get("id", "")
+            label = self._soup.find("label", attrs={"for": input_id})
+            if not label or not input_id:
+                continue
+            if re.match(label_regex, label.getText().strip(), re.IGNORECASE):
+                results.append(inp.get("name", ""))
+        return results
+
+    def get_test_scoring_dates(self) -> list[str]:
+        names = []
+        for inputs in self._soup.select(".date.il-input-datetime input"):
+            names.append(inputs["name"])
+        return names
 
     @staticmethod
     def page_has_success_alert(page: "ExtendedIliasPage") -> bool:
