@@ -478,7 +478,7 @@ class IliasInteractor:
         raise CrawlError(f"download_file failed even after authenticating on {url!r}")
 
     async def end_all_user_passes(self, test_page: ExtendedIliasPage, indent: str = ""):
-        dashboard = await self.select_tab(test_page, TestTab.DASHBOARD)
+        dashboard = await self.select_tab(test_page, TestTab.PARTICIPANTS)
         url = dashboard.get_test_dashboard_end_all_passes_url()
 
         if not url:

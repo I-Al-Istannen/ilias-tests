@@ -20,7 +20,7 @@ class QuestionType(Enum):
 
 class TestTab(Enum):
     SETTINGS = ("Settings", "Einstellungen")
-    DASHBOARD = ("Dashboard",)
+    PARTICIPANTS = ("Participants", "Teilnehmer")
     QUESTIONS = ("Questions", "Fragen")
 
 
