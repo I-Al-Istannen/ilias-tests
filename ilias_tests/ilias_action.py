@@ -398,7 +398,7 @@ class IliasInteractor:
                 "pluginname": "",
                 "cmd[insert]": "-",
             },
-            soup_succeeded=lambda pg: "cmdClass=ilpageeditorgui" in pg.url(),
+            soup_succeeded=lambda pg: "cmdclass=ilpageeditorgui" in pg.normalized_url(),
         )
         log.explain("Completed first stage")
 
@@ -425,7 +425,9 @@ class IliasInteractor:
             return form_data
 
         page = await self._post_authenticated(
-            url=post_url, data=build_form_data, soup_succeeded=lambda pg: "cmdClass=ilassquestionpagegui" in pg.url()
+            url=post_url,
+            data=build_form_data,
+            soup_succeeded=lambda pg: "cmdclass=ilassquestionpagegui" in pg.normalized_url(),
         )
 
         new_id = page.get_test_question_design_last_component_id()
@@ -480,7 +482,7 @@ class IliasInteractor:
         await self._post_authenticated(
             url=url,
             data={"cmd[confirmFinishTestPassForAllUser]": "Fortfahren"},
-            soup_succeeded=lambda pg: "cmdClass=iltestparticipantsgui" in pg.url(),
+            soup_succeeded=lambda pg: "cmdclass=iltestparticipantsgui" in pg.normalized_url(),
         )
 
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
@@ -627,7 +629,7 @@ class IliasInteractor:
 
 
 def _auth_redirected_to_test_page(response: aiohttp.ClientResponse):
-    return "cmdClass=ilobjtestsettingsgeneralgui" in response.url.query_string
+    return "cmdclass=ilobjtestsettingsgeneralgui" in response.url.query_string.lower()
 
 
 def _format_time(time: Optional[datetime.datetime]) -> str:

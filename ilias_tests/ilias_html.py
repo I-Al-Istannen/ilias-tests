@@ -45,9 +45,12 @@ class ExtendedIliasPage(IliasPage):
     def url(self):
         return self._page_url
 
+    def normalized_url(self):
+        return self._page_url.lower()
+
     def is_test_page(self):
         log.explain_topic("Verifying page is a test")
-        if "cmdClass=ilobjtestgui" in self.url():
+        if "cmdclass=ilobjtestgui" in self.normalized_url():
             log.explain("Page matched test url fragment")
             return True
         header = self._soup.find(id="headerimage")
@@ -61,10 +64,10 @@ class ExtendedIliasPage(IliasPage):
         return False
 
     def is_test_create_page(self):
-        return "cmd=create" in self._page_url and "new_type=tst" in self._page_url
+        return "cmd=create" in self.normalized_url() and "new_type=tst" in self.normalized_url()
 
     def is_test_question_edit_page(self):
-        return "cmd=editQuestion" in self._page_url
+        return "cmd=editquestion" in self.normalized_url()
 
     def get_test_create_url(self) -> Optional[str]:
         return self._abs_url_from_link(self._soup.find(id="tst"))
@@ -177,7 +180,7 @@ class ExtendedIliasPage(IliasPage):
 
     def _get_test_question_ids_and_links(self) -> list[tuple[str, bs4.Tag]]:
         """Returns [(id, link tag for title)]"""
-        if "cmd=questions" not in self._page_url or "ilobjtestgui" not in self._page_url:
+        if "cmd=questions" not in self.normalized_url() or "ilobjtestgui" not in self.normalized_url():
             raise CrawlError("Not on test question page")
         table = self._soup.find(name="table", id=lambda x: x and x.startswith("tst_qst_lst"))
         if not table:
@@ -217,14 +220,14 @@ class ExtendedIliasPage(IliasPage):
         )
 
     def get_test_question_reconstruct_from_edit(self, page_design: list[PageDesignBlock]):
-        if "cmd=editQuestion" not in self.url():
+        if "cmd=editquestion" not in self.normalized_url():
             raise CrawlError("Not on question edit page")
         title = _norm(self._soup.find(id="title")["value"].strip())
         author = _norm(self._soup.find(id="author")["value"].strip())
         summary = _norm(self._soup.find(id="comment").get("value", "").strip())
         question_html = _norm(self._soup.find(id="question").getText().strip())
 
-        if "asstextquestiongui" in self.url():
+        if "asstextquestiongui" in self.normalized_url():
             # free from text
             points = float(self._soup.find(id="non_keyword_points")["value"].strip())
             return QuestionFreeFormText(
@@ -235,7 +238,7 @@ class ExtendedIliasPage(IliasPage):
                 page_design=page_design,
                 points=points,
             )
-        elif "cmdClass=assfileuploadgui" in self.url():
+        elif "cmdclass=assfileuploadgui" in self.normalized_url():
             # file upload
             max_size_bytes = int(self._soup.find(id="maxsize").get("value", "2097152").strip())
             allowed_extensions = self._soup.find(id="allowedextensions").get("value", "").strip().split(",")
@@ -250,7 +253,7 @@ class ExtendedIliasPage(IliasPage):
                 allowed_extensions=allowed_extensions,
                 max_size_bytes=max_size_bytes,
             )
-        elif "cmdClass=asssinglechoicegui" in self.url():
+        elif "cmdclass=asssinglechoicegui" in self.normalized_url():
             shuffle = True if self._soup.find(id="shuffle").get("checked", None) else False
             answer_table = self._soup.find(name="table", attrs={"class": lambda x: x and "singlechoicewizard" in x})
             answers = []
@@ -396,14 +399,14 @@ class ExtendedIliasPage(IliasPage):
     def page_has_success_alert(page: "ExtendedIliasPage") -> bool:
         if ExtendedIliasPage.page_has_failure_alert(page):
             return False
-        for alert in page._soup.find_all(attrs={"role": "alert"}):
+        for alert in page._soup.find_all(attrs={"role": ["status", "alert"]}):
             if "alert-success" in alert.get("class", ""):
                 return True
         return False
 
     @staticmethod
     def page_has_failure_alert(page: "ExtendedIliasPage") -> bool:
-        for alert in page._soup.find_all(attrs={"role": "alert"}):
+        for alert in page._soup.find_all(attrs={"role": ["alert", "status"]}):
             if "alert-danger" in alert.get("class", ""):
                 log.warn("Got danger alert")
                 log.warn_contd(alert.getText().strip())
