@@ -11,7 +11,6 @@ import aiohttp
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
-
 # noinspection PyProtectedMember
 from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler, _iorepeat
 from PFERD.logging import log
@@ -226,20 +225,20 @@ class IliasInteractor:
 
         url, extra_data = page.get_test_scoring_settings_change_data()
         label_values = {
-            ".+falsch beantwortete Fragen ergeben.+": "0",
-            "Das Ergebnis einer Frage kann nie weniger als 0 Punkte sein": "0",
-            "Letzten Durchlauf des Tests bewerten": "0",
-            "Eigenes Testergebnis einsehen": "checked",
-            "Nach Durchlauf des Tests": "1",
-            "Detaillierte Testergebnisse anzeigen": "checked",
-            "Note anzeigen": "checked",
-            '"Bestanden" / "Nicht bestanden" anzeigen': "checked",
-            "Bewertete Antworten als Liste": "checked",
-            "Bewertete Antworten auf Einzelseiten": "checked",
-            "Bestmögliche Lösung": "checked",
-            "Rückmeldungen": "checked",
-            "Druckbare Liste der Antworten": "checked",
-            "Länge der Bestenliste": "0",  # not used, but required
+            "(.*falsch beantwortete Fragen ergeben.*)|(.*Incomplete or Partially Incorrect.*)": "0",
+            "(.*nie weniger als 0 Punkte sein)|(.*Cannot Score Negative Points.*)": "0",
+            "(Letzten Durchlauf des Tests bewerten)|(Score the Last Attempt)": "0",
+            "(Eigenes Testergebnis einsehen)|(Access to Test Results)": "checked",
+            "(Nach Durchlauf des Tests)|(After Test Attempt Is Finished)": "1",
+            "(.Bestanden. / .Nicht bestanden. anzeigen)|(Show .Passed. / .Failed. Status)": "checked",
+            "(Note anzeigen)|(Show Grade)": "checked",
+            "(Detaillierte Testergebnisse anzeigen)|(Show detailed test results)": "checked",
+            "(Bewertete Antworten als Liste)|(Scored Answers of Participant)": "checked",
+            "(Bewertete Antworten auf Einzelseiten)|(Scored Answers on single pages)": "checked",
+            "(Bestmögliche Lösung)|(Best Solution)": "checked",
+            "(Rückmeldungen)|(Feedback)": "checked",
+            "(Druckbare Liste der Antworten)|(Additional .List of Answers. for Printing)": "checked",
+            "(Länge der Bestenliste)|(Length of Top Ranking)": "0",  # not used, but required
         }
         post_data = {}
 
