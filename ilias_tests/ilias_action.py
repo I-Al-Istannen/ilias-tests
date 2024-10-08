@@ -117,7 +117,7 @@ class IliasInteractor:
         log.explain_topic(f"Selecting tab {target_tab.name.lower()}")
         for name, url in page.get_test_tabs().items():
             if name in target_tab.value:
-                return await self._get_extended_page(url)
+                return await self.select_page(url)
         raise CrawlError(f"Could not find a match for tab {target_tab.name} in {page.get_test_tabs()}")
 
     async def select_page(self, url: str):

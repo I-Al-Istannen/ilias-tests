@@ -26,6 +26,16 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         test.ending_time,
         test.number_of_tries,
     )
+    # Somehow ILIAS needs this twice to actually fill out the intro text...
+    tab_page = await interactor.configure_test(
+        tab_page,
+        test.title,
+        test.description,
+        test.intro_text,
+        test.starting_time,
+        test.ending_time,
+        test.number_of_tries,
+    )
     log.status("[cyan]", "Create", f"{indent}Configure scoring settings so people see their results")
     tab_page = await interactor.configure_test_scoring(tab_page)
     log.explain_topic("Navigating to questions")
