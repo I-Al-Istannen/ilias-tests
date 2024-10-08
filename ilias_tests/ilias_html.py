@@ -12,8 +12,17 @@ from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.logging import log
 from bs4 import BeautifulSoup
 
-from .spec import (QuestionUploadFile, QuestionFreeFormText, QuestionSingleChoice, PageDesignBlock,
-                   PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode, IliasTest, TestQuestion)
+from .spec import (
+    QuestionUploadFile,
+    QuestionFreeFormText,
+    QuestionSingleChoice,
+    PageDesignBlock,
+    PageDesignBlockText,
+    PageDesignBlockImage,
+    PageDesignBlockCode,
+    IliasTest,
+    TestQuestion,
+)
 
 
 @dataclass
@@ -97,7 +106,7 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError("Could not find add question button")
         start = button["onclick"].find("'")
         end = button["onclick"].rfind("'")
-        return self._abs_url_from_relative(button["onclick"][start + 1:end])
+        return self._abs_url_from_relative(button["onclick"][start + 1 : end])
 
     def get_test_question_create_url(self) -> str:
         """Enter question editor by selecting its type and information."""
@@ -116,17 +125,21 @@ class ExtendedIliasPage(IliasPage):
     def _get_extra_form_values(form: bs4.Tag) -> set[ExtraFormData]:
         extra_values = set()
         for inpt in form.find_all(name="input", attrs={"required": "required"}):
-            extra_values.add(ExtraFormData(
-                name=inpt["name"],
-                value=inpt.get("value", ""),
-                disabled=inpt.get("disabled", None) is not None
-            ))
+            extra_values.add(
+                ExtraFormData(
+                    name=inpt["name"],
+                    value=inpt.get("value", ""),
+                    disabled=inpt.get("disabled", None) is not None,
+                )
+            )
         for select in form.find_all(name="select"):
-            extra_values.add(ExtraFormData(
-                name=select["name"],
-                value=select.find(name="option", attrs={"selected": "selected"}).get("value", ""),
-                disabled=select.get("disabled", None) is not None
-            ))
+            extra_values.add(
+                ExtraFormData(
+                    name=select["name"],
+                    value=select.find(name="option", attrs={"selected": "selected"}).get("value", ""),
+                    disabled=select.get("disabled", None) is not None,
+                )
+            )
 
         for inpt in form.find_all(name="input", attrs={"disabled": "disabled"}):
             extra_values.add(ExtraFormData(name=inpt["name"], value="", disabled=True))
@@ -150,7 +163,7 @@ class ExtendedIliasPage(IliasPage):
         for select in position_select.find_all("option"):
             text: str = select.getText().strip()
             if "Nach" in text:
-                title = text[len("Nach"):text.rfind("[")].strip()
+                title = text[len("Nach") : text.rfind("[")].strip()
                 results[title] = select["value"]
         return results
 
@@ -235,7 +248,7 @@ class ExtendedIliasPage(IliasPage):
                 page_design=page_design,
                 points=points,
                 allowed_extensions=allowed_extensions,
-                max_size_bytes=max_size_bytes
+                max_size_bytes=max_size_bytes,
             )
         elif "cmdClass=asssinglechoicegui" in self.url():
             shuffle = True if self._soup.find(id="shuffle").get("checked", None) else False
@@ -255,7 +268,7 @@ class ExtendedIliasPage(IliasPage):
                 question_html=question_html,
                 page_design=page_design,
                 shuffle=shuffle,
-                answers=answers
+                answers=answers,
             )
         else:
             raise CrawlError(f"Unknown question type at '{self.url()}'")
@@ -287,8 +300,7 @@ class ExtendedIliasPage(IliasPage):
         raise CrawlError("Could not find copg editor base url")
 
     async def get_test_question_design_blocks(
-        self,
-        downloader: Callable[[str], Awaitable[Path]]
+        self, downloader: Callable[[str], Awaitable[Path]]
     ) -> list[PageDesignBlock]:
         log.explain_topic(f"Fetching page design blocks for '{self.url()}'")
         form = self._soup.find(name="form", attrs={"name": "ilAssQuestionPreview"})
@@ -321,11 +333,13 @@ class ExtendedIliasPage(IliasPage):
                     if match := re.search(r"downloadtitle=([^&]+)", download_link["href"]):
                         name = match.group(1)
 
-                blocks.append(PageDesignBlockCode(
-                    code=_norm(code.getText().strip()),
-                    language="c",  # guess
-                    name=_norm(name),
-                ))
+                blocks.append(
+                    PageDesignBlockCode(
+                        code=_norm(code.getText().strip()),
+                        language="c",  # guess
+                        name=_norm(name),
+                    )
+                )
                 continue
             if media_container := child.select_one(".ilc_media_cont_MediaContainer"):
                 log.explain("Found image block")
@@ -350,7 +364,7 @@ class ExtendedIliasPage(IliasPage):
             starting_time=_parse_time(self._soup.find(id="starting_time")),
             ending_time=_parse_time(self._soup.find(id="ending_time")),
             number_of_tries=int(self._soup.find(id="nr_of_tries").get("value", "100")),
-            questions=questions
+            questions=questions,
         )
 
     def get_test_question_design_last_component_id(self) -> str:
@@ -379,7 +393,7 @@ class ExtendedIliasPage(IliasPage):
         return self._abs_url_from_relative(form["action"]), extra_values
 
     @staticmethod
-    def page_has_success_alert(page: 'ExtendedIliasPage') -> bool:
+    def page_has_success_alert(page: "ExtendedIliasPage") -> bool:
         if ExtendedIliasPage.page_has_failure_alert(page):
             return False
         for alert in page._soup.find_all(attrs={"role": "alert"}):
@@ -388,7 +402,7 @@ class ExtendedIliasPage(IliasPage):
         return False
 
     @staticmethod
-    def page_has_failure_alert(page: 'ExtendedIliasPage') -> bool:
+    def page_has_failure_alert(page: "ExtendedIliasPage") -> bool:
         for alert in page._soup.find_all(attrs={"role": "alert"}):
             if "alert-danger" in alert.get("class", ""):
                 log.warn("Got danger alert")
@@ -414,7 +428,7 @@ def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:
 
 
 def random_ilfilehash() -> str:
-    return ''.join(random.choice(string.ascii_lowercase + "0123456789") for _ in range(32))
+    return "".join(random.choice(string.ascii_lowercase + "0123456789") for _ in range(32))
 
 
 def _norm(inpt: str) -> str:

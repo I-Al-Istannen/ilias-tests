@@ -30,9 +30,9 @@ def str_presenter(dumper, data):
     Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
     Ref: https://github.com/yaml/pyyaml/issues/240#issuecomment-1096224358
     """
-    if data.count('\n') > 0 or data.count("<p>") > 0:
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+    if data.count("\n") > 0 or data.count("<p>") > 0:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
 
 yaml.add_representer(str, str_presenter)
@@ -40,12 +40,7 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 def load_freeform_question(
-    title: str,
-    author: str,
-    summary: str,
-    question_html: str,
-    page_design: list['PageDesignBlock'],
-    yml: dict[Any, Any]
+    title: str, author: str, summary: str, question_html: str, page_design: list["PageDesignBlock"], yml: dict[Any, Any]
 ):
     return QuestionFreeFormText(
         title=title,
@@ -53,17 +48,12 @@ def load_freeform_question(
         summary=summary,
         question_html=question_html,
         page_design=page_design,
-        points=yml["points"]
+        points=yml["points"],
     )
 
 
 def load_upload_file_question(
-    title: str,
-    author: str,
-    summary: str,
-    question_html: str,
-    page_design: list['PageDesignBlock'],
-    yml: dict[Any, Any]
+    title: str, author: str, summary: str, question_html: str, page_design: list["PageDesignBlock"], yml: dict[Any, Any]
 ):
     return QuestionUploadFile(
         title=title,
@@ -73,17 +63,12 @@ def load_upload_file_question(
         page_design=page_design,
         points=yml["points"],
         allowed_extensions=yml["allowed_filetypes"],
-        max_size_bytes=eval(str(yml["max_bytes"]))
+        max_size_bytes=eval(str(yml["max_bytes"])),
     )
 
 
 def load_single_choice_question(
-    title: str,
-    author: str,
-    summary: str,
-    question_html: str,
-    page_design: list['PageDesignBlock'],
-    yml: dict[Any, Any]
+    title: str, author: str, summary: str, question_html: str, page_design: list["PageDesignBlock"], yml: dict[Any, Any]
 ):
     answers: list[tuple[str, float]] = []
     for elem in yml["answers"]:
@@ -96,15 +81,13 @@ def load_single_choice_question(
         question_html=question_html,
         page_design=page_design,
         shuffle=yml["shuffle"],
-        answers=answers
+        answers=answers,
     )
 
 
 class PageDesignBlock(abc.ABC):
-
     @abc.abstractmethod
-    def serialize(self) -> dict[str, Any]:
-        ...
+    def serialize(self) -> dict[str, Any]: ...
 
     @staticmethod
     def deserialize(yml: dict[str, Any]):
@@ -128,7 +111,7 @@ class PageDesignBlockText(PageDesignBlock):
         return {"text": self.text_html, "type": "text"}
 
     @staticmethod
-    def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockText':
+    def deserialize(yml: dict[str, Any]) -> "PageDesignBlockText":
         return PageDesignBlockText(yml["text"])
 
 
@@ -140,7 +123,7 @@ class PageDesignBlockImage(PageDesignBlock):
         return {"path": str(self.image), "type": "image"}
 
     @staticmethod
-    def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockImage':
+    def deserialize(yml: dict[str, Any]) -> "PageDesignBlockImage":
         return PageDesignBlockImage(Path(yml["path"]))
 
 
@@ -154,14 +137,19 @@ class PageDesignBlockCode(PageDesignBlock):
         return {"code": self.code, "language": self.language, "name": self.name, "type": "code"}
 
     @staticmethod
-    def deserialize(yml: dict[str, Any]) -> 'PageDesignBlockCode':
+    def deserialize(yml: dict[str, Any]) -> "PageDesignBlockCode":
         return PageDesignBlockCode(yml["code"], yml["language"], yml["name"])
 
 
 class TestQuestion(abc.ABC):
     def __init__(
-        self, title: str, author: str, summary: str, question_html: str, question_type: QuestionType,
-        page_design: list[PageDesignBlock]
+        self,
+        title: str,
+        author: str,
+        summary: str,
+        question_html: str,
+        question_type: QuestionType,
+        page_design: list[PageDesignBlock],
     ):
         self.title = title
         self.author = author
@@ -185,11 +173,11 @@ class TestQuestion(abc.ABC):
             "author": self.author,
             "summary": self.summary,
             "question_html": self.question_html,
-            "page_design": [block.serialize() for block in self.page_design]
+            "page_design": [block.serialize() for block in self.page_design],
         }
 
     @staticmethod
-    def deserialize(yml: dict[Any, Any]) -> 'TestQuestion':
+    def deserialize(yml: dict[Any, Any]) -> "TestQuestion":
         str_type = yml["type"]
         title = yml["title"]
         author = yml["author"]
@@ -209,8 +197,13 @@ class TestQuestion(abc.ABC):
 
 class QuestionFreeFormText(TestQuestion):
     def __init__(
-        self, title: str, author: str, summary: str, question_html: str, points: float,
-        page_design: list[PageDesignBlock]
+        self,
+        title: str,
+        author: str,
+        summary: str,
+        question_html: str,
+        points: float,
+        page_design: list[PageDesignBlock],
     ):
         super().__init__(title, author, summary, question_html, QuestionType.FREE_FORM_TEXT, page_design)
         self.points = points
@@ -225,19 +218,20 @@ class QuestionFreeFormText(TestQuestion):
         }
 
     def serialize(self) -> dict[str, Any]:
-        return {
-            **super().serialize(),
-            "points": self.points,
-            "type": "freeform_text"
-        }
+        return {**super().serialize(), "points": self.points, "type": "freeform_text"}
 
 
 class QuestionUploadFile(TestQuestion):
-
     def __init__(
         self,
-        title: str, author: str, summary: str, question_html: str, page_design: list[PageDesignBlock],
-        points: float, allowed_extensions: list[str], max_size_bytes: int
+        title: str,
+        author: str,
+        summary: str,
+        question_html: str,
+        page_design: list[PageDesignBlock],
+        points: float,
+        allowed_extensions: list[str],
+        max_size_bytes: int,
     ):
         super().__init__(title, author, summary, question_html, QuestionType.FILE_UPLOAD, page_design)
         self.points = points
@@ -258,16 +252,20 @@ class QuestionUploadFile(TestQuestion):
             "allowed_filetypes": self.allowed_extensions,
             "max_bytes": self.max_size_bytes,
             "points": self.points,
-            "type": "file_upload"
+            "type": "file_upload",
         }
 
 
 class QuestionSingleChoice(TestQuestion):
-
     def __init__(
         self,
-        title: str, author: str, summary: str, question_html: str, page_design: list[PageDesignBlock],
-        shuffle: bool, answers: list[tuple[str, float]]
+        title: str,
+        author: str,
+        summary: str,
+        question_html: str,
+        page_design: list[PageDesignBlock],
+        shuffle: bool,
+        answers: list[tuple[str, float]],
     ):
         super().__init__(title, author, summary, question_html, QuestionType.SINGLE_CHOICE, page_design)
         self.shuffle = shuffle
@@ -296,12 +294,7 @@ class QuestionSingleChoice(TestQuestion):
         for title, points in self.answers:
             answers.append({"answer": title, "points": points})
 
-        return {
-            **super().serialize(),
-            "answers": answers,
-            "shuffle": self.shuffle,
-            "type": "single_choice"
-        }
+        return {**super().serialize(), "answers": answers, "shuffle": self.shuffle, "type": "single_choice"}
 
 
 @dataclass
@@ -323,7 +316,7 @@ class IliasTest:
             "starting_time": self.starting_time,
             "ending_time": self.ending_time,
             "number_of_tries": self.number_of_tries,
-            "questions": [questions_title_to_id[question.title] for question in self.questions]
+            "questions": [questions_title_to_id[question.title] for question in self.questions],
         }
 
     @staticmethod
@@ -337,7 +330,7 @@ class IliasTest:
             starting_time=eval(start_time) if isinstance(start_time, str) else start_time,
             ending_time=eval(end_time) if isinstance(end_time, str) else end_time,
             number_of_tries=yml["number_of_tries"],
-            questions=test_questions
+            questions=test_questions,
         )
 
 
@@ -385,9 +378,7 @@ def dump_tests_to_yml(tests: list[IliasTest]) -> str:
         tests_dict[slug] = yml_dict
 
     return yaml.safe_dump(
-        {"tests": tests_dict, "questions": dump_questions_to_yml_dict(questions)},
-        indent=2,
-        allow_unicode=True
+        {"tests": tests_dict, "questions": dump_questions_to_yml_dict(questions)}, indent=2, allow_unicode=True
     )
 
 

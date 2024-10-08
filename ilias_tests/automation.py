@@ -13,11 +13,7 @@ from .spec import IliasTest, TestQuestion, filter_with_regex, TestTab
 
 async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test: IliasTest, indent: str = ""):
     log.status("[cyan]", "Create", f"{indent}Creating Ilias object")
-    test_page = await interactor.create_test(
-        folder,
-        test.title,
-        test.description
-    )
+    test_page = await interactor.create_test(folder, test.title, test.description)
     log.status("[cyan]", "Create", f"{indent}Fetching settings")
     tab_page = await interactor.select_tab(test_page, TestTab.SETTINGS)
     log.status("[cyan]", "Create", f"{indent}Configuring")
@@ -28,7 +24,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         test.intro_text,
         test.starting_time,
         test.ending_time,
-        test.number_of_tries
+        test.number_of_tries,
     )
     log.status("[cyan]", "Create", f"{indent}Configure scoring settings so people see their results")
     tab_page = await interactor.configure_test_scoring(tab_page)
@@ -37,8 +33,9 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
 
     log.explain_topic("Adding questions")
     for index, question in enumerate(test.questions):
-        log.status("[bold cyan]", "Create", f"{indent}Adding question {index + 1}",
-                   f"[bright_black]({question.title!r})")
+        log.status(
+            "[bold cyan]", "Create", f"{indent}Adding question {index + 1}", f"[bright_black]({question.title!r})"
+        )
         await interactor.add_question(tab_page, question)
 
     log.explain("Navigating to questions")
@@ -159,7 +156,7 @@ def _matches_regex_part(to_test: str, glob_regex: str):
 def _strip_first_path_segment(path_string: str) -> tuple[str, Optional[str]]:
     if "/" in path_string:
         slash_index = path_string.find("/")
-        return path_string[:slash_index], path_string[slash_index + 1:]
+        return path_string[:slash_index], path_string[slash_index + 1 :]
     return path_string, None
 
 

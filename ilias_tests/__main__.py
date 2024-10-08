@@ -85,12 +85,7 @@ async def run_create(interactor: IliasInteractor, args: argparse.Namespace):
         log.status("[cyan]", "Create", f"Creating tests in {fmt_path(path)}")
         for index, test in list(enumerate(tests)):
             log.status("[bold cyan]", "Create", f"  Adding test {index + 1}", f"[bright_black]({test.title})")
-            await add_test(
-                interactor,
-                page,
-                test,
-                indent=" " * 4
-            )
+            await add_test(interactor, page, test, indent=" " * 4)
 
 
 async def run_passes(interactor: IliasInteractor, args: argparse.Namespace):
@@ -136,11 +131,7 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
     else:
         target_elements = [(PurePath("test"), target_page)]
 
-    log.status(
-        "[bold cyan]",
-        "Configure",
-        f"Configuring {len(target_elements)} test(s)"
-    )
+    log.status("[bold cyan]", "Configure", f"Configuring {len(target_elements)} test(s)")
 
     for path, test_page in target_elements:
         log.status("[cyan]", "Configure", f"  Working on {fmt_path(path)}")
@@ -160,7 +151,7 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
                 starting_time=test.starting_time,
                 ending_time=test.ending_time,
                 number_of_tries=test.number_of_tries,
-                online=args.publish is True
+                online=args.publish is True,
             )
         if args.fix_result_viewing:
             log.status("[cyan]", "Configure", "    Fixing result viewing")
@@ -168,13 +159,13 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='The forgotten ILIAS Test API', prog="ilias-tests")
+    parser = argparse.ArgumentParser(description="The forgotten ILIAS Test API", prog="ilias-tests")
     parser.add_argument(
-        "--no-keyring", help="do not use the system keyring to store credentials", action='store_false', dest="keyring"
+        "--no-keyring", help="do not use the system keyring to store credentials", action="store_false", dest="keyring"
     )
     parser.add_argument("--user", type=str, required=True, help="the name of the Shibboleth user")
     parser.add_argument("--password", type=str, help="the user's password (interactive input preferred)", default=None)
-    parser.add_argument("--explain", help="shows more debug information", action='store_true')
+    parser.add_argument("--explain", help="shows more debug information", action="store_true")
     parser.add_argument("--cookies", type=Path, help="location of cookies file", default=Path(".cookies"))
 
     subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
@@ -189,22 +180,22 @@ def main():
         "ilias_folder",
         metavar="URL",
         type=str,
-        help="the folder to place the test in. Acts as the base folder if '--replicate' is given"
+        help="the folder to place the test in. Acts as the base folder if '--replicate' is given",
     )
     create.add_argument(
         "--replicate",
         metavar="REGEX",
         type=str,
         help="a glob-like regex (directories separated by '/') defining all folders where you want the test"
-             " to be placed at. Defaults to '.*'",
-        default=".*"
+        " to be placed at. Defaults to '.*'",
+        default=".*",
     )
     create.add_argument(
         "--tests",
         metavar="REGEX",
         type=str,
         help="selects a subset of tests from the spec. Matched against the title. Defaults to '.*'",
-        default=".*"
+        default=".*",
     )
 
     passes = subparsers.add_parser("passes", help="manage users' test passes")
@@ -212,7 +203,7 @@ def main():
         "test_or_folder",
         type=str,
         metavar="URL",
-        help="the URL of the test to work on, or a folder if combined with '--replicate'"
+        help="the URL of the test to work on, or a folder if combined with '--replicate'",
     )
     passes.add_argument("--end-passes", action="store_true", help="Ends the passes for all users")
     passes.add_argument(
@@ -220,7 +211,7 @@ def main():
         metavar="REGEX",
         type=str,
         help="a glob-like regex (directories separated by '/') defining all tests you want to be affected, "
-             "if the test url is a folder",
+        "if the test url is a folder",
     )
 
     configure = subparsers.add_parser("configure", help="configure ILIAS tests")
@@ -228,14 +219,14 @@ def main():
         "test_or_folder",
         type=str,
         metavar="URL",
-        help="the URL of the test to work on, or a folder if combined with '--replicate'"
+        help="the URL of the test to work on, or a folder if combined with '--replicate'",
     )
     configure.add_argument(
         "--replicate",
         metavar="REGEX",
         type=str,
         help="a glob-like regex (directories separated by '/') defining all tests you want to be affected, "
-             "if the test url is a folder",
+        "if the test url is a folder",
     )
     configure.add_argument("--fix-result-viewing", action="store_true", help="ends the passes for all users")
     publish_group = configure.add_mutually_exclusive_group()

@@ -11,6 +11,7 @@ import aiohttp
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
+
 # noinspection PyProtectedMember
 from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler, _iorepeat
 from PFERD.logging import log
@@ -23,7 +24,6 @@ from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesign
 
 
 class IliasInteractor:
-
     def __init__(
         self,
         authenticator: Authenticator,
@@ -52,7 +52,7 @@ class IliasInteractor:
                 connect=http_timeout,
                 sock_connect=http_timeout,
                 sock_read=http_timeout,
-            )
+            ),
         )
 
     def _load_cookies(self) -> None:
@@ -109,12 +109,8 @@ class IliasInteractor:
 
         return await self._post_authenticated(
             submit_url,
-            data={
-                "title": title,
-                "desc": description,
-                "save": submit_value
-            },
-            request_succeeded=_auth_redirected_to_test_page
+            data={"title": title, "desc": description, "save": submit_value},
+            request_succeeded=_auth_redirected_to_test_page,
         )
 
     async def select_tab(self, page: ExtendedIliasPage, target_tab: TestTab):
@@ -137,7 +133,7 @@ class IliasInteractor:
         starting_time: Optional[datetime.datetime],
         ending_time: Optional[datetime.datetime],
         number_of_tries: int,
-        online: bool = False
+        online: bool = False,
     ):
         """Configures the base test properties."""
         log.explain_topic(f"Configuring test {title}")
@@ -161,10 +157,7 @@ class IliasInteractor:
             "intro_enabled": "1",  # show text before the test
             "introduction": intro_text,  # the text
         }
-        access_params = {
-            "starting_time": _format_time(starting_time),
-            "ending_time": _format_time(ending_time)
-        }
+        access_params = {"starting_time": _format_time(starting_time), "ending_time": _format_time(ending_time)}
         run_test_params = {
             "limitPasses": "1",
             "nr_of_tries": str(number_of_tries),
@@ -188,9 +181,15 @@ class IliasInteractor:
         }
 
         data = {
-            **base_params, **activation_params, **intro_params, **access_params,
-            **run_test_params, **run_question_params, **run_user_params,
-            **test_finish_params, **other_params
+            **base_params,
+            **activation_params,
+            **intro_params,
+            **access_params,
+            **run_test_params,
+            **run_question_params,
+            **run_user_params,
+            **test_finish_params,
+            **other_params,
         }
         url, extra_data = settings_page.get_test_settings_change_data()
 
@@ -219,10 +218,7 @@ class IliasInteractor:
             )
             return form_data
 
-        return await self._post_authenticated(
-            url=url,
-            data=build_form_data
-        )
+        return await self._post_authenticated(url=url, data=build_form_data)
 
     async def configure_test_scoring(self, settings_page: ExtendedIliasPage) -> ExtendedIliasPage:
         log.explain_topic("Configuring test scoring settings")
@@ -232,19 +228,15 @@ class IliasInteractor:
         post_data = {
             "results_access_enabled": "1",  # allow students to see test results
             "results_access_setting": "2",  # always show results, even without finishing the run
-
             "grading_status": "1",  # show buttons in "detailed results" table to navigate to question in list or detail
             "grading_mark": "1",  # same observable behaviour
-
             "solution_feedback": "1",  # show tutor feedback, is not enough alone. Just allows it to be shown.
             "pass_details": "1",  # show "detailed results" table and link
-
             "solution_printview": "1",  # show all results with tutor feedback below the "detailed results" table
             # "solution_compare": "1",  # and show the "best solution" there
-
             "solution_details": "1",  # show direct link to question with tutor feedback in the "detailed results" table
             # "print_bs_with_res": "1",  # and show the "best solution" in the "detailed results" table
-            "cmd[saveForm]": "Speichern"
+            "cmd[saveForm]": "Speichern",
         }
         for extra in extra_data:
             if extra.disabled:
@@ -253,16 +245,9 @@ class IliasInteractor:
             if extra.name not in post_data:
                 post_data[extra.name] = extra.value
 
-        return await self._post_authenticated(
-            url=url,
-            data=post_data
-        )
+        return await self._post_authenticated(url=url, data=post_data)
 
-    async def add_question(
-        self,
-        question_page: ExtendedIliasPage,
-        question: TestQuestion
-    ):
+    async def add_question(self, question_page: ExtendedIliasPage, question: TestQuestion):
         log.explain_topic(f"Adding question {question.title!r}")
         url = question_page.get_test_add_question_url()
         page = await self._get_extended_page(url)
@@ -274,15 +259,12 @@ class IliasInteractor:
                 "qtype": str(question.question_type.value),
                 "add_quest_cont_edit_mode": "default",  # TinyMCE
                 "usage": "1",  # no question pool
-                "position": "0"  # just put it at the beginning
+                "position": "0",  # just put it at the beginning
             },
-            soup_succeeded=lambda pg: pg.is_test_question_edit_page()
+            soup_succeeded=lambda pg: pg.is_test_question_edit_page(),
         )
 
-        post_data = {
-            **question.get_options(),
-            "cmd[saveReturn]": "Speichern und zurückkehren"
-        }
+        post_data = {**question.get_options(), "cmd[saveReturn]": "Speichern und zurückkehren"}
 
         url, defaults = edit_page.get_test_question_finalize_data()
         for extra in defaults:
@@ -317,10 +299,7 @@ class IliasInteractor:
             question_to_position[ids[title]] = str(index)
 
         url, data = questions_tab.get_test_question_save_order_data(question_to_position)
-        await self._post_authenticated(
-            url=url,
-            data=data
-        )
+        await self._post_authenticated(url=url, data=data)
 
     async def select_edit_question(self, question_url: str):
         log.explain(f"Editing question '{question_url}'")
@@ -356,8 +335,8 @@ class IliasInteractor:
                     "pcid": new_id,
                     "content": text_html,
                     "characteristic": "Standard",
-                    "fromPlaceholder": False
-                }
+                    "fromPlaceholder": False,
+                },
             },
         )
         if resp["error"]:
@@ -378,7 +357,7 @@ class IliasInteractor:
             "action": "insert",
             "after_pcid": after_id,
             "pcid": "",
-            "ilfilehash": random_ilfilehash()
+            "ilfilehash": random_ilfilehash(),
         }
 
         def build_form_data():
@@ -389,18 +368,14 @@ class IliasInteractor:
                         name=post_key,
                         value=open(post_val, "rb"),
                         content_type=mimetypes.guess_type(post_val)[0],
-                        filename=str(post_val.name)
+                        filename=str(post_val.name),
                     )
                 else:
                     form_data.add_field(post_key, post_val)
 
             return form_data
 
-        await self._post_authenticated(
-            url=post_url,
-            data=build_form_data,
-            soup_succeeded=lambda x: True
-        )
+        await self._post_authenticated(url=post_url, data=build_form_data, soup_succeeded=lambda x: True)
 
         edit_page = await self.select_page(edit_page.url())
         new_id = edit_page.get_test_question_design_last_component_id()
@@ -421,9 +396,9 @@ class IliasInteractor:
                 "pcid": after_id,
                 "hier_id": "pg",
                 "pluginname": "",
-                "cmd[insert]": "-"
+                "cmd[insert]": "-",
             },
-            soup_succeeded=lambda pg: "cmdClass=ilpageeditorgui" in pg.url()
+            soup_succeeded=lambda pg: "cmdClass=ilpageeditorgui" in pg.url(),
         )
         log.explain("Completed first stage")
 
@@ -436,7 +411,7 @@ class IliasInteractor:
             "par_downloadtitle": file_name,
             "ilfilehash": random_ilfilehash(),
             "cmd[create_src]": "Speichern",
-            "userfile": Path("")
+            "userfile": Path(""),
         }
 
         def build_form_data():
@@ -450,9 +425,7 @@ class IliasInteractor:
             return form_data
 
         page = await self._post_authenticated(
-            url=post_url,
-            data=build_form_data,
-            soup_succeeded=lambda pg: "cmdClass=ilassquestionpagegui" in pg.url()
+            url=post_url, data=build_form_data, soup_succeeded=lambda pg: "cmdClass=ilassquestionpagegui" in pg.url()
         )
 
         new_id = page.get_test_question_design_last_component_id()
@@ -506,10 +479,8 @@ class IliasInteractor:
         url = page.get_test_dashboard_end_all_passes_confirm_url()
         await self._post_authenticated(
             url=url,
-            data={
-                "cmd[confirmFinishTestPassForAllUser]": "Fortfahren"
-            },
-            soup_succeeded=lambda pg: "cmdClass=iltestparticipantsgui" in pg.url()
+            data={"cmd[confirmFinishTestPassForAllUser]": "Fortfahren"},
+            soup_succeeded=lambda pg: "cmdClass=iltestparticipantsgui" in pg.url(),
         )
 
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
