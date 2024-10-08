@@ -3,11 +3,13 @@ import datetime
 import http.cookies
 import json
 import mimetypes
+import ssl
 from pathlib import Path, PurePath
 from random import randint
 from typing import Any, Union, Callable, Optional
 
 import aiohttp
+import certifi
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
@@ -42,8 +44,7 @@ class IliasInteractor:
         self.session = aiohttp.ClientSession(
             headers={"User-Agent": "Foobar"},
             cookie_jar=self._cookie_jar,
-            # connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
-            connector=aiohttp.TCPConnector(verify_ssl=False),
+            connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
             timeout=ClientTimeout(
                 # 30 minutes. No download in the history of downloads was longer than 30 minutes.
                 # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
