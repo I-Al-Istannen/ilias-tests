@@ -163,7 +163,7 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
                 online=args.publish is True
             )
         if args.fix_result_viewing:
-            log.status("[cyan]", "Configure", f"    Fixing result viewing")
+            log.status("[cyan]", "Configure", "    Fixing result viewing")
             await interactor.configure_test_scoring(tab)
 
 

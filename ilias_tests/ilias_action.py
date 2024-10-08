@@ -40,7 +40,7 @@ class IliasInteractor:
         self._load_cookies()
 
         self.session = aiohttp.ClientSession(
-            headers={"User-Agent": f"Foobar"},
+            headers={"User-Agent": "Foobar"},
             cookie_jar=self._cookie_jar,
             # connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
             connector=aiohttp.TCPConnector(verify_ssl=False),
@@ -225,7 +225,7 @@ class IliasInteractor:
         )
 
     async def configure_test_scoring(self, settings_page: ExtendedIliasPage) -> ExtendedIliasPage:
-        log.explain_topic(f"Configuring test scoring settings")
+        log.explain_topic("Configuring test scoring settings")
         page = await self._get_extended_page(settings_page.get_scoring_settings_url())
 
         url, extra_data = page.get_test_scoring_settings_change_data()
