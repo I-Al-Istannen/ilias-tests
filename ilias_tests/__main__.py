@@ -9,7 +9,7 @@ from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
-from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex, slurp_grading_state
+from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex, slurp_grading_state, upload_grading_state
 from .ilias_action import IliasInteractor
 from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex, TestTab
 
@@ -161,14 +161,21 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
 async def run_grading(interactor: IliasInteractor, args: argparse.Namespace):
     log.status("[bold magenta]", "Setup", "Initializing")
 
-    output_dir: Path = args.output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
+    storage_dir: Path = args.storage_dir
+    storage_dir.mkdir(parents=True, exist_ok=True)
 
-    await slurp_grading_state(
-        interactor,
-        await interactor.select_page(args.test_url),
-        output_dir,
-    )
+    if args.download_state:
+        await slurp_grading_state(
+            interactor,
+            await interactor.select_page(args.test_url),
+            storage_dir,
+        )
+    elif args.upload_state:
+        await upload_grading_state(
+            interactor,
+            await interactor.select_page(args.test_url),
+            storage_dir,
+        )
 
 
 def main():
@@ -246,9 +253,18 @@ def main():
     publish_group.add_argument("--publish", action="store_true", help="sets a tests status to online")
     publish_group.add_argument("--unpublish", action="store_true", help="sets a tests status to offline")
 
-    manual_grading = subparsers.add_parser("grading", help="Manually grade tests in ILIAS")
+    manual_grading = subparsers.add_parser(
+        "grading", help="Manually grade tests in ILIAS (EXPERIMENTAL, HERE BE DRAGONS)"
+    )
     manual_grading.add_argument("test_url", type=str, help="the URL of the test to grade")
-    manual_grading.add_argument("output_dir", type=Path, help="the output directory for the grading results")
+    manual_grading.add_argument("storage_dir", type=Path, help="the directory to store grading state")
+    grading_group = manual_grading.add_mutually_exclusive_group(required=True)
+    grading_group.add_argument(
+        "--download-state", action="store_true", help="download grading state instead of uploading"
+    )
+    grading_group.add_argument(
+        "--upload-state", action="store_true", help="upload grading state instead of downloading"
+    )
 
     args = parser.parse_args()
 

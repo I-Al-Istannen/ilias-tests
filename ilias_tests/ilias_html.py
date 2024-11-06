@@ -10,9 +10,7 @@ import bs4
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.logging import log
-from PFERD.utils import soupify
 from bs4 import BeautifulSoup
-from markdownify import MarkdownConverter, markdownify
 
 from .spec import (
     QuestionUploadFile,
@@ -28,6 +26,7 @@ from .spec import (
     ManualGradingGradedQuestion,
     ManualGradingParticipantResults,
     ManualGradingQuestion,
+    ManualGradingQuestionType,
 )
 
 
@@ -463,26 +462,34 @@ class ExtendedIliasPage(IliasPage):
         for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):
             match = re.compile(r"\[ID: (\d+)]").search(question.getText())
             question_id = match.group(1)
-            user_answer = question.find_next(id="il_prop_cont_")
-            text_answer = user_answer.select_one(".ilc_question_TextQuestion")
-            if not text_answer:
-                log.warn(f"Could not find text answer for question: {question.getText().strip()}")
-                continue
-            text_answer = text_answer.select_one(".solutionbox")
-            if text_answer:
-                text_answer = text_answer.getText().strip()
+            answer_type, answer_text = self._get_manual_grading_participant_answer(
+                question.find_next(id="il_prop_cont_")
+            )
             points = self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input").get("value", "0")
             max_points = self._soup.select_one(f"#question__{question_id}__maxpoints").getText().strip()
             feedback = self._soup.select_one(f"#question__{question_id}__feedback").getText().strip()
             questions.append(
                 ManualGradingGradedQuestion(
-                    ManualGradingQuestion(question_id, question.getText().strip(), float(max_points)),
-                    text_answer,
+                    ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
+                    answer_text,
                     float(points),
                     feedback,
                 )
             )
         return ManualGradingParticipantResults(participant, questions)
+
+    @staticmethod
+    def _get_manual_grading_participant_answer(user_answer: bs4.Tag) -> Optional[tuple[ManualGradingQuestionType, str]]:
+        if text_answer := user_answer.select_one(".ilc_question_TextQuestion"):
+            text_answer = text_answer.select_one(".solutionbox")
+            if text_answer:
+                return "freeform_text", text_answer.getText().strip()
+        elif user_answer.select_one(".ilc_question_FileUpload") is not None:
+            return "file_upload", "file_upload"
+        return None
+
+    def get_manual_grading_save_url(self):
+        return self._form_target_from_button("cmd[saveManScoringParticipantScreen]")[0]
 
     @staticmethod
     def page_has_success_alert(page: "ExtendedIliasPage") -> bool:

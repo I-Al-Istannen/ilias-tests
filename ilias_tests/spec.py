@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Literal
 
 import yaml
 from PFERD.crawl import CrawlError
@@ -391,6 +391,25 @@ def filter_with_regex(element: str, regex: str) -> bool:
     return result
 
 
+#  ____       _                 _                     _
+# | __ )  ___| | _____      __ | |__   ___ _ __ ___  (_)___
+# |  _ \ / _ \ |/ _ \ \ /\ / / | '_ \ / _ \ '__/ _ \ | / __|
+# | |_) |  __/ | (_) \ V  V /  | | | |  __/ | |  __/ | \__ \
+# |____/ \___|_|\___/ \_/\_/   |_| |_|\___|_|  \___| |_|___/
+#
+#                   _                                                 _
+#   __ _  __ _ _ __| |__   __ _  __ _  ___     _   _ ___  ___    __ _| |_
+#  / _` |/ _` | '__| '_ \ / _` |/ _` |/ _ \   | | | / __|/ _ \  / _` | __|
+# | (_| | (_| | |  | |_) | (_| | (_| |  __/_  | |_| \__ \  __/ | (_| | |_
+#  \__, |\__,_|_|  |_.__/ \__,_|\__, |\___( )  \__,_|___/\___|  \__,_|\__|
+#  |___/                        |___/     |/
+#                             _     _
+#   _____      ___ __    _ __(_)___| | __
+#  / _ \ \ /\ / / '_ \  | '__| / __| |/ /
+# | (_) \ V  V /| | | | | |  | \__ \   <
+#  \___/ \_/\_/ |_| |_| |_|  |_|___/_|\_\
+
+
 @dataclass
 class ManualGradingParticipantInfo:
     last_name: str
@@ -399,7 +418,10 @@ class ManualGradingParticipantInfo:
     detail_link: str
 
     def format_name(self) -> str:
-        return f"{self.email} ({self.first_name} {self.last_name})"
+        return f"{self.email} ({self.last_name}, {self.first_name})"
+
+
+ManualGradingQuestionType = Literal["single_choice", "freeform_text", "file_upload"]
 
 
 @dataclass(unsafe_hash=True)
@@ -407,6 +429,7 @@ class ManualGradingQuestion:
     id: str
     text: str
     max_points: float
+    question_type: ManualGradingQuestionType
 
 
 @dataclass
@@ -430,9 +453,12 @@ class ManualGradingParticipantResults:
 
 
 def manual_grading_write_question_md(
-    results: list[ManualGradingParticipantResults], question: ManualGradingQuestion
+    results: list[ManualGradingParticipantResults], question: ManualGradingQuestion, convert_to_markdown: bool = True
 ) -> str:
     md = f"# {question.text}\n\n"
+
+    def convert(text: str) -> str:
+        return markdownify(text) if convert_to_markdown else text
 
     for result in results:
         participant = result.participant
@@ -440,9 +466,126 @@ def manual_grading_write_question_md(
             md += f"## {participant.format_name()}\n\n"
             md += f"### Answer {question_result.points} / {question.max_points}\n"
             md += "```\n"
-            md += markdownify(question_result.answer)
+            md += convert(question_result.answer)
             md += "\n```\n"
             md += "----\n"
-            md += f"{markdownify(question_result.feedback)}\n"
+            if question.question_type == "file_upload":
+                # Already formatted
+                md += f"{question_result.feedback.strip()}\n\n"
+            else:
+                md += f"{convert(question_result.feedback).strip()}\n\n"
 
     return md
+
+
+class StringReader:
+    underlying: str
+    position: int
+
+    def __init__(self, underlying: str):
+        self.underlying = underlying
+        self.position = 0
+
+    def read_until(self, pattern: str) -> str:
+        pos = self.underlying.find(pattern, self.position)
+        if pos < 0:
+            raise ValueError("Pattern not found")
+        result = self.underlying[self.position : pos]
+        self.position = pos + len(pattern)
+        return result
+
+    def read_line(self) -> str:
+        return self.read_until("\n")
+
+    def skip_blank_lines(self):
+        while self.has_more() and self.underlying[self.position] == "\n":
+            self.position += 1
+
+    def read_rest(self) -> str:
+        result = self.underlying[self.position :]
+        self.position = len(self.underlying)
+        return result
+
+    def has_more(self):
+        return self.position < len(self.underlying)
+
+    def can_find(self, pattern: str) -> bool:
+        return self.underlying.find(pattern, self.position) >= 0
+
+
+def load_manual_grading_results_from_md(folder: Path) -> dict[str, ManualGradingParticipantResults]:
+    participant_results = dict()
+    for question_md in folder.glob("*.md"):
+        question_id = str(question_md.name).replace(".md", "")
+        with open(question_md, "r") as f:
+            content = f.read()
+        question_results = _parse_manual_grading_question_file(question_id, content)
+        students = _parse_students_from_md(content)
+
+        for email, result in question_results.items():
+            if email not in participant_results:
+                participant_results[email] = ManualGradingParticipantResults(students[email], [])
+            participant_results[email].answers.append(result)
+
+    return participant_results
+
+
+def _parse_students_from_md(text: str):
+    results = dict()
+    students = [line for line in text.splitlines() if line.startswith("## ")]
+
+    for student in students:
+        student = student.replace("## ", "")
+        email = student[: student.find("(")].strip()
+        last_name, first_name = student[student.find("(") + 1 : student.find(")")].split(", ")
+        results[email] = ManualGradingParticipantInfo(last_name, first_name, email, "")
+
+    return results
+
+
+def _parse_manual_grading_question_file(question_id: str, text: str) -> dict[str, ManualGradingGradedQuestion]:
+    reader = StringReader(text)
+    question_title = reader.read_line().strip().replace("# ", "")
+    reader.read_until("## ")
+
+    gradings_per_student = dict()
+
+    while reader.has_more():
+        student, graded = _parse_student_question_result(reader, question_id, question_title)
+        gradings_per_student[student] = graded
+
+        reader.skip_blank_lines()
+
+    return gradings_per_student
+
+
+def _parse_student_question_result(
+    reader: StringReader, question_id: str, question_title: str
+) -> tuple[str, ManualGradingGradedQuestion]:
+    student_mail = reader.read_line().strip().replace("## ", "")
+    student_mail = student_mail[: student_mail.find("(")].strip()
+
+    reader.read_until("### Answer")
+    points, max_points = reader.read_line().strip().split(" / ")
+
+    reader.read_until("```\n")
+    answer = reader.read_until("\n```\n")
+
+    reader.read_until("----\n")
+    if reader.can_find("## "):
+        feedback = reader.read_until("## ").strip()
+    else:
+        feedback = reader.read_rest().strip()
+
+    graded_question = ManualGradingGradedQuestion(
+        ManualGradingQuestion(
+            question_id,
+            question_title,
+            float(max_points),
+            "file_upload" if "file\\_upload" == answer else "freeform_text",
+        ),
+        answer,
+        float(points),
+        feedback,
+    )
+    return student_mail, graded_question

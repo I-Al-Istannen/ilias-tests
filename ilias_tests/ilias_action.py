@@ -10,6 +10,7 @@ from typing import Any, Union, Callable, Optional
 
 import aiohttp
 import certifi
+import markdown2
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
@@ -22,7 +23,15 @@ from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
 
 from .ilias_html import ExtendedIliasPage, random_ilfilehash
-from .spec import TestQuestion, PageDesignBlock, PageDesignBlockText, PageDesignBlockImage, PageDesignBlockCode, TestTab
+from .spec import (
+    TestQuestion,
+    PageDesignBlock,
+    PageDesignBlockText,
+    PageDesignBlockImage,
+    PageDesignBlockCode,
+    TestTab,
+    ManualGradingParticipantResults,
+)
 
 
 class IliasInteractor:
@@ -510,6 +519,20 @@ class IliasInteractor:
             data=data,
             soup_succeeded=is_valid_page,
         )
+
+    async def upload_manual_grading_result(self, page: ExtendedIliasPage, results: ManualGradingParticipantResults):
+        data = {
+            "cmd[saveManScoringParticipantScreen]": "Speichern",
+            "myCounter": [""] * len(results.answers),
+        }
+
+        for answer in results.answers:
+            question_id = answer.question.id
+            data[f"question__{question_id}__points"] = str(answer.points)
+            data[f"question__{question_id}__feedback"] = markdown2.markdown(answer.feedback)
+        save_url = page.get_manual_grading_save_url()
+
+        return await self._post_authenticated(save_url, data)
 
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
         return ExtendedIliasPage(await self._get_soup(url), url)

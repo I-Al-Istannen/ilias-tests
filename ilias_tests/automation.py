@@ -15,6 +15,7 @@ from .spec import (
     TestTab,
     manual_grading_write_question_md,
     ManualGradingParticipantResults,
+    load_manual_grading_results_from_md,
 )
 
 
@@ -150,6 +151,33 @@ async def _slurp_participant_results(interactor, page) -> list[ManualGradingPart
         participant_page = await interactor.select_page(participant.detail_link)
         participant_results.append(participant_page.get_manual_grading_participant_results(participant))
     return participant_results
+
+
+async def upload_grading_state(interactor: IliasInteractor, test_page: ExtendedIliasPage, input_dir: Path) -> None:
+    log.explain_topic("Uploading grading results")
+
+    log.status("[bold cyan]", "Grading", f"Parsing saved data from {input_dir}")
+    results_by_mail = load_manual_grading_results_from_md(input_dir)
+
+    log.explain("Navigating to manual grading tab")
+    tab_page = await interactor.select_tab(test_page, TestTab.MANUAL_GRADING)
+
+    log.explain("Navigating to manual grading per participant")
+    tab_page = await interactor.select_page(tab_page.get_manual_grading_per_participant_url())
+
+    log.explain("Showing all participants")
+    page = await interactor.set_manual_grading_filter_show_all(tab_page)
+
+    participant_urls = page.get_manual_grading_participant_infos()
+    for index, participant in enumerate(participant_urls):
+        log.status(
+            "[cyan]",
+            "Grading",
+            f"  Updating participant {index + 1:-2}",
+            f"[bright_black]{participant.format_name()!r}",
+        )
+        page = await interactor.select_page(participant.detail_link)
+        await interactor.upload_manual_grading_result(page, results_by_mail[participant.email])
 
 
 async def ilias_glob_regex(
