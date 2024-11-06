@@ -9,7 +9,7 @@ from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
-from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex
+from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex, slurp_grading_state
 from .ilias_action import IliasInteractor
 from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex, TestTab
 
@@ -158,6 +158,19 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
             await interactor.configure_test_scoring(tab)
 
 
+async def run_grading(interactor: IliasInteractor, args: argparse.Namespace):
+    log.status("[bold magenta]", "Setup", "Initializing")
+
+    output_dir: Path = args.output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    await slurp_grading_state(
+        interactor,
+        await interactor.select_page(args.test_url),
+        output_dir,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="The forgotten ILIAS Test API", prog="ilias-tests")
     parser.add_argument(
@@ -233,6 +246,10 @@ def main():
     publish_group.add_argument("--publish", action="store_true", help="sets a tests status to online")
     publish_group.add_argument("--unpublish", action="store_true", help="sets a tests status to offline")
 
+    manual_grading = subparsers.add_parser("grading", help="Manually grade tests in ILIAS")
+    manual_grading.add_argument("test_url", type=str, help="the URL of the test to grade")
+    manual_grading.add_argument("output_dir", type=Path, help="the output directory for the grading results")
+
     args = parser.parse_args()
 
     # show usage if no subcommand was picked
@@ -249,6 +266,8 @@ def main():
             run_command = run_passes
         case "configure":
             run_command = run_configure
+        case "grading":
+            run_command = run_grading
         case _:
             parser.print_help()
             exit(1)

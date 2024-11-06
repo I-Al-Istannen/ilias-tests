@@ -498,6 +498,19 @@ class IliasInteractor:
             soup_succeeded=lambda pg: "cmdclass=iltestparticipantsgui" in pg.normalized_url(),
         )
 
+    async def set_manual_grading_filter_show_all(self, tab_page: ExtendedIliasPage):
+        filter_url = tab_page.get_manual_grading_filter_url()
+        data = {"participant_status": "3", "cmd[applyManScoringParticipantsFilter]": "Filter+anwenden"}
+
+        def is_valid_page(page: ExtendedIliasPage):
+            return page._soup.find(id="participant_status").find("option", selected=True).get("value") == "3"
+
+        return await self._post_authenticated(
+            filter_url,
+            data=data,
+            soup_succeeded=is_valid_page,
+        )
+
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
         return ExtendedIliasPage(await self._get_soup(url), url)
 

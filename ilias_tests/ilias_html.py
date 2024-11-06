@@ -10,7 +10,9 @@ import bs4
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 from PFERD.logging import log
+from PFERD.utils import soupify
 from bs4 import BeautifulSoup
+from markdownify import MarkdownConverter, markdownify
 
 from .spec import (
     QuestionUploadFile,
@@ -22,6 +24,10 @@ from .spec import (
     PageDesignBlockCode,
     IliasTest,
     TestQuestion,
+    ManualGradingParticipantInfo,
+    ManualGradingGradedQuestion,
+    ManualGradingParticipantResults,
+    ManualGradingQuestion,
 )
 
 
@@ -427,6 +433,56 @@ class ExtendedIliasPage(IliasPage):
         for inputs in self._soup.select(".date.il-input-datetime input"):
             names.append(inputs["name"])
         return names
+
+    def get_manual_grading_per_participant_url(self):
+        link = self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=showManScoringParticipantsTable" in x})
+        if link is not None:
+            return self._abs_url_from_link(link)
+        return None
+
+    def get_manual_grading_filter_url(self):
+        link = self._soup.find(id="manScorePartTable").get("action")
+        return self._abs_url_from_relative(link)
+
+    def get_manual_grading_participant_infos(self) -> list[ManualGradingParticipantInfo]:
+        participants = []
+        table = self._soup.find(name="table", id="manScorePartTable")
+        for row in table.select("tbody > tr"):
+            cols = list(row.select("td"))
+            last_name = cols[0].getText().strip()
+            first_name = cols[1].getText().strip()
+            email = cols[2].getText().strip()
+            detail_link = self._abs_url_from_link(cols[3].select_one("a"))
+            participants.append(ManualGradingParticipantInfo(last_name, first_name, email, detail_link))
+        return participants
+
+    def get_manual_grading_participant_results(
+        self, participant: ManualGradingParticipantInfo
+    ) -> ManualGradingParticipantResults:
+        questions: list[ManualGradingGradedQuestion] = []
+        for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):
+            match = re.compile(r"\[ID: (\d+)]").search(question.getText())
+            question_id = match.group(1)
+            user_answer = question.find_next(id="il_prop_cont_")
+            text_answer = user_answer.select_one(".ilc_question_TextQuestion")
+            if not text_answer:
+                log.warn(f"Could not find text answer for question: {question.getText().strip()}")
+                continue
+            text_answer = text_answer.select_one(".solutionbox")
+            if text_answer:
+                text_answer = text_answer.getText().strip()
+            points = self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input").get("value", "0")
+            max_points = self._soup.select_one(f"#question__{question_id}__maxpoints").getText().strip()
+            feedback = self._soup.select_one(f"#question__{question_id}__feedback").getText().strip()
+            questions.append(
+                ManualGradingGradedQuestion(
+                    ManualGradingQuestion(question_id, question.getText().strip(), float(max_points)),
+                    text_answer,
+                    float(points),
+                    feedback,
+                )
+            )
+        return ManualGradingParticipantResults(participant, questions)
 
     @staticmethod
     def page_has_success_alert(page: "ExtendedIliasPage") -> bool:

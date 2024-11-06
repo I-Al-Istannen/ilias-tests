@@ -2,9 +2,11 @@
 name = "ilias-tests"
 version = "0.2.2"
 dependencies = [
+  "markdown2>=2.5.1",
+  "markdownify>=0.13.1",
   "PFERD@git+https://github.com/garmelon/pferd@master",
   "python-slugify",
-  "pyyaml"
+  "pyyaml",
 ]
 requires-python = ">= 3.10"
 

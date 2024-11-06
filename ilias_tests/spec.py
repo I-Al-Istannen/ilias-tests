@@ -9,6 +9,7 @@ from typing import Optional, Any, Union
 import yaml
 from PFERD.crawl import CrawlError
 from PFERD.logging import log
+from markdownify import markdownify
 from slugify import slugify
 
 
@@ -22,6 +23,7 @@ class TestTab(Enum):
     SETTINGS = ("Settings", "Einstellungen")
     PARTICIPANTS = ("Participants", "Teilnehmer")
     QUESTIONS = ("Questions", "Fragen")
+    MANUAL_GRADING = ("", "Manuelle Bewertung")
 
 
 def str_presenter(dumper, data):
@@ -387,3 +389,60 @@ def filter_with_regex(element: str, regex: str) -> bool:
     result = re.fullmatch(regex, element) is not None
     log.explain(f"Keep {element!r} for regex {regex!r}? {'Yes' if result else 'No'}")
     return result
+
+
+@dataclass
+class ManualGradingParticipantInfo:
+    last_name: str
+    first_name: str
+    email: str
+    detail_link: str
+
+    def format_name(self) -> str:
+        return f"{self.email} ({self.first_name} {self.last_name})"
+
+
+@dataclass(unsafe_hash=True)
+class ManualGradingQuestion:
+    id: str
+    text: str
+    max_points: float
+
+
+@dataclass
+class ManualGradingGradedQuestion:
+    question: ManualGradingQuestion
+    answer: str
+    points: float
+    feedback: str
+
+
+@dataclass
+class ManualGradingParticipantResults:
+    participant: ManualGradingParticipantInfo
+    answers: list[ManualGradingGradedQuestion]
+
+    def get_question(self, question_id: str) -> Optional[ManualGradingGradedQuestion]:
+        for question in self.answers:
+            if question.question.id == question_id:
+                return question
+        return None
+
+
+def manual_grading_write_question_md(
+    results: list[ManualGradingParticipantResults], question: ManualGradingQuestion
+) -> str:
+    md = f"# {question.text}\n\n"
+
+    for result in results:
+        participant = result.participant
+        if question_result := result.get_question(question.id):
+            md += f"## {participant.format_name()}\n\n"
+            md += f"### Answer {question_result.points} / {question.max_points}\n"
+            md += "```\n"
+            md += markdownify(question_result.answer)
+            md += "\n```\n"
+            md += "----\n"
+            md += f"{markdownify(question_result.feedback)}\n"
+
+    return md
