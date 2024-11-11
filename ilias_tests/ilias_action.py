@@ -10,7 +10,6 @@ from typing import Any, Union, Callable, Optional
 
 import aiohttp
 import certifi
-import markdown2
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage
@@ -30,7 +29,7 @@ from .spec import (
     PageDesignBlockImage,
     PageDesignBlockCode,
     TestTab,
-    ManualGradingParticipantResults,
+    ManualGradingParticipantResults, manual_grading_feedback_md_to_html,
 )
 
 
@@ -529,7 +528,7 @@ class IliasInteractor:
         for answer in results.answers:
             question_id = answer.question.id
             data[f"question__{question_id}__points"] = str(answer.points)
-            data[f"question__{question_id}__feedback"] = markdown2.markdown(answer.feedback)
+            data[f"question__{question_id}__feedback"] = manual_grading_feedback_md_to_html(answer.feedback)
         save_url = page.get_manual_grading_save_url()
 
         return await self._post_authenticated(save_url, data)

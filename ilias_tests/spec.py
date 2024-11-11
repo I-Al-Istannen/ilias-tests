@@ -6,9 +6,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Any, Union, Literal
 
+import markdown2
 import yaml
 from PFERD.crawl import CrawlError
 from PFERD.logging import log
+from PFERD.utils import soupify
 from markdownify import markdownify
 from slugify import slugify
 
@@ -593,3 +595,14 @@ def _parse_student_question_result(
         feedback,
     )
     return student_mail, graded_question
+
+def manual_grading_feedback_md_to_html(markdown: str) -> str:
+    html = markdown2.markdown(markdown)
+    bs4 = soupify(html.encode())
+
+    # Fix blockquotes for TinyMCE
+    for quote in bs4.find_all("blockquote"):
+        quote.name = "div"
+        quote["style"] = "border-left: 4px solid #d1d9e0; color: #59636e; padding-left: 1em;"
+
+    return bs4.decode_contents()
