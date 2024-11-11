@@ -483,7 +483,7 @@ class ExtendedIliasPage(IliasPage):
         if text_answer := user_answer.select_one(".ilc_question_TextQuestion"):
             text_answer = text_answer.select_one(".solutionbox")
             if text_answer:
-                return "freeform_text", text_answer.getText().strip()
+                return "freeform_text", text_answer.decode_contents()
         elif user_answer.select_one(".ilc_question_FileUpload") is not None:
             return "file_upload", "file_upload"
         return None

@@ -458,7 +458,11 @@ def manual_grading_write_question_md(
     md = f"# {question.text}\n\n"
 
     def convert(text: str) -> str:
-        return markdownify(text) if convert_to_markdown else text
+        if not convert_to_markdown:
+            return text
+        # Remove spaces between <p> tags
+        text = re.sub(r"\s+<p>", "<p>", text)
+        return markdownify(text, escape_misc=False, escape_underscore=False, escape_asterisks=False).strip()
 
     for result in results:
         participant = result.participant
