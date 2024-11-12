@@ -464,7 +464,14 @@ def manual_grading_write_question_md(
             return text
         # Remove spaces between <p> tags
         text = re.sub(r"\s+<p>", "<p>", text)
-        return markdownify(text, escape_misc=False, escape_underscore=False, escape_asterisks=False).strip()
+        # Remove (basically) empty paragraphs
+        text = re.sub(r"<p[^>]+>(\s|&nbsp;)+</p>\n*", "", text)
+        text = re.sub(r"\s+<pre>", "<pre>", text)
+        text = re.sub(r"</p>(\s|\n)+", "</p>", text)
+        text = markdownify(text, escape_misc=False, escape_underscore=False, escape_asterisks=False)
+        text = re.sub(r"\n+```", "\n```", text)
+        text = text.replace(r"\_", "_")
+        return text.strip()
 
     for result in results:
         participant = result.participant
@@ -597,7 +604,7 @@ def _parse_student_question_result(
     return student_mail, graded_question
 
 def manual_grading_feedback_md_to_html(markdown: str) -> str:
-    html = markdown2.markdown(markdown)
+    html = markdown2.markdown(markdown, extras=["fenced-code-blocks", "tables", "strike", "code-friendly"])
     bs4 = soupify(html.encode())
 
     # Fix blockquotes for TinyMCE
