@@ -603,6 +603,7 @@ def _parse_student_question_result(
     )
     return student_mail, graded_question
 
+
 def manual_grading_feedback_md_to_html(markdown: str) -> str:
     html = markdown2.markdown(markdown, extras=["fenced-code-blocks", "tables", "strike", "code-friendly"])
     bs4 = soupify(html.encode())

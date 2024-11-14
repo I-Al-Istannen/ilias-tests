@@ -12,10 +12,13 @@ import aiohttp
 import certifi
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
-from PFERD.crawl.ilias.kit_ilias_html import IliasPage
 
 # noinspection PyProtectedMember
-from PFERD.crawl.ilias.kit_ilias_web_crawler import KitShibbolethLogin, KitIliasWebCrawler, _iorepeat
+from PFERD.crawl.ilias.async_helper import _iorepeat
+from PFERD.crawl.ilias.kit_ilias_html import IliasPage
+
+from PFERD.crawl.ilias.kit_ilias_web_crawler import KitIliasWebCrawler
+from PFERD.crawl.ilias.shibboleth_login import ShibbolethLogin
 from PFERD.logging import log
 from PFERD.utils import soupify, fmt_path
 from aiohttp import ClientTimeout
@@ -29,7 +32,8 @@ from .spec import (
     PageDesignBlockImage,
     PageDesignBlockCode,
     TestTab,
-    ManualGradingParticipantResults, manual_grading_feedback_md_to_html,
+    ManualGradingParticipantResults,
+    manual_grading_feedback_md_to_html,
 )
 
 
@@ -40,7 +44,7 @@ class IliasInteractor:
         cookie_file: Path,
         http_timeout: int = 60,
     ) -> None:
-        self._shibboleth_auth = KitShibbolethLogin(authenticator, None)
+        self._shibboleth_auth = ShibbolethLogin("https://ilias.studium.kit.edu", authenticator, None)
         self._cookie_jar = aiohttp.CookieJar()
         self._cookie_file = cookie_file
         self._authentication_id = 0
@@ -62,6 +66,7 @@ class IliasInteractor:
                 sock_connect=http_timeout,
                 sock_read=http_timeout,
             ),
+            requote_redirect_url=False,
         )
 
     def _load_cookies(self) -> None:
