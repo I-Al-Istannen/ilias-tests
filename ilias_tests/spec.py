@@ -17,6 +17,7 @@ from slugify import slugify
 
 class QuestionType(Enum):
     SINGLE_CHOICE = 1
+    MULTIPLE_CHOICE = 2
     FREE_FORM_TEXT = 8
     FILE_UPLOAD = 14
 
@@ -86,6 +87,25 @@ def load_single_choice_question(
         page_design=page_design,
         shuffle=yml["shuffle"],
         answers=answers,
+    )
+
+def load_multiple_choice_question(
+    title: str, author: str, summary: str, question_html: str, page_design: list["PageDesignBlock"], yml: dict[Any, Any]
+):
+    answers: list[tuple[str, float, float]] = []
+    for elem in yml["answers"]:
+        answers.append((elem["answer"], elem["points"], elem["points_unchecked"]))
+    selection_limit = yml.get("selection_limit", None)
+
+    return QuestionMultipleChoice(
+        title=title,
+        author=author,
+        summary=summary,
+        question_html=question_html,
+        page_design=page_design,
+        shuffle=yml["shuffle"],
+        answers=answers,
+        selection_limit=selection_limit,
     )
 
 
@@ -195,6 +215,8 @@ class TestQuestion(abc.ABC):
             return load_freeform_question(title, author, summary, question_html, page_design, yml)
         elif str_type == "single_choice":
             return load_single_choice_question(title, author, summary, question_html, page_design, yml)
+        elif str_type == "multiple_choice":
+            return load_multiple_choice_question(title, author, summary, question_html, page_design, yml)
         else:
             raise CrawlError(f"Unknown question type {str_type}")
 
@@ -301,6 +323,50 @@ class QuestionSingleChoice(TestQuestion):
 
         return {**super().serialize(), "answers": answers, "shuffle": self.shuffle, "type": "single_choice"}
 
+
+class QuestionMultipleChoice(TestQuestion):
+    def __init__(
+        self,
+        title: str,
+        author: str,
+        summary: str,
+        question_html: str,
+        page_design: list[PageDesignBlock],
+        shuffle: bool,
+        answers: list[tuple[str, float, float]],
+        selection_limit: int | None,
+    ):
+        super().__init__(title, author, summary, question_html, QuestionType.MULTIPLE_CHOICE, page_design)
+        self.shuffle = shuffle
+        self.answers = answers
+        self.selection_limit = selection_limit
+
+    def get_options(self) -> dict[str, Union[str, Path]]:
+        # choice[answer][0]
+        # choice[image][0]"; filename="", octet-stream
+        # choice[points][0]
+        answer_options: dict[str, Union[str, Path]] = {}
+        for index, (answer, points_checked, points_unchecked) in enumerate(self.answers):
+            answer_options[f"choice[answer][{index}]"] = answer
+            answer_options[f"choice[answer_id][{index}]"] = "-1"
+            answer_options[f"choice[image][{index}]"] = Path("")
+            answer_options[f"choice[points][{index}]"] = str(points_checked)
+            answer_options[f"choice[points_unchecked][{index}]"] = str(points_unchecked)
+
+        return {
+            **super().get_options(),
+            **answer_options,
+            "shuffle": "1" if self.shuffle else "0",
+            "types": "0",  # single line answers for now
+            "thumb_size": "150",  # image preview size. Not supported for now.
+        } | (dict() if self.selection_limit is None else {"selection_limit": str(self.selection_limit)})
+
+    def serialize(self) -> dict[str, Any]:
+        answers = []
+        for title, points, points_unchecked in self.answers:
+            answers.append({"answer": title, "points": points, "points_unchecked": points_unchecked})
+
+        return {**super().serialize(), "answers": answers, "shuffle": self.shuffle, "type": "multiple_choice", "selection_limit": self.selection_limit}
 
 @dataclass
 class IliasTest:
@@ -423,7 +489,7 @@ class ManualGradingParticipantInfo:
         return f"{self.email} ({self.last_name}, {self.first_name})"
 
 
-ManualGradingQuestionType = Literal["single_choice", "freeform_text", "file_upload"]
+ManualGradingQuestionType = Literal["single_choice", "freeform_text", "file_upload", "multiple_choice"]
 
 
 @dataclass(unsafe_hash=True)
