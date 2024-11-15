@@ -18,8 +18,19 @@ from slugify import slugify
 class QuestionType(Enum):
     SINGLE_CHOICE = 1
     MULTIPLE_CHOICE = 2
+    # CLOZE_TEST = 3
+    # MATCHING = 4
+    # ORDERING = 5
+    # IMAGEMAP = 6
     FREE_FORM_TEXT = 8
+    # NUMERIC = 9
+    # TEXT_SUBSET = 10
+    # ORDERING_HORIZONTAL = 13
     FILE_UPLOAD = 14
+    # ERROR_TEXT = 15
+    # FORMULA = 16
+    # KPRIM = 17
+    # LONG_MENU = 18
 
 
 class TestTab(Enum):
