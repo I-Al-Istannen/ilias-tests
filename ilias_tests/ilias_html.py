@@ -16,6 +16,7 @@ from .spec import (
     QuestionUploadFile,
     QuestionFreeFormText,
     QuestionSingleChoice,
+    QuestionMultipleChoice,
     PageDesignBlock,
     PageDesignBlockText,
     PageDesignBlockImage,
@@ -290,6 +291,33 @@ class ExtendedIliasPage(IliasPage):
                 page_design=page_design,
                 shuffle=shuffle,
                 answers=answers,
+            )
+        elif "cmdclass=assmultiplechoicegui" in self.normalized_url():
+            shuffle = True if self._soup.find(id="shuffle").get("checked", None) else False
+            selection_limit = self._soup.find(id="selection_limit").get("value", None)
+            if selection_limit is not None:
+                selection_limit = int(selection_limit)
+            answer_table = self._soup.find(name="table", attrs={"class": lambda x: x and "multiplechoicewizard" in x})
+            answers = []
+            for inpt in answer_table.find_all(name="input", id=lambda x: x and x.startswith("choice[answer]")):
+                answer_value = _norm(inpt.get("value", ""))
+                answer_points_checked = float(
+                    answer_table.find(id=inpt["id"].replace("answer", "points")).get("value", "0").strip()
+                )
+                answer_points_unchecked = float(
+                    answer_table.find(id=inpt["id"].replace("answer", "points_unchecked")).get("value", "0").strip()
+                )
+                answers.append((answer_value, answer_points_checked, answer_points_unchecked))
+
+            return QuestionMultipleChoice(
+                title=title,
+                author=author,
+                summary=summary,
+                question_html=question_html,
+                page_design=page_design,
+                shuffle=shuffle,
+                answers=answers,
+                selection_limit=selection_limit,
             )
         else:
             raise CrawlError(f"Unknown question type at '{self.url()}'")
