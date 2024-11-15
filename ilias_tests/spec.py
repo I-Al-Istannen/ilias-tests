@@ -89,12 +89,13 @@ def load_single_choice_question(
         answers=answers,
     )
 
+
 def load_multiple_choice_question(
     title: str, author: str, summary: str, question_html: str, page_design: list["PageDesignBlock"], yml: dict[Any, Any]
 ):
-    answers: list[tuple[str, float, float]] = []
+    answers: list[QuestionMultipleChoice.Answer] = []
     for elem in yml["answers"]:
-        answers.append((elem["answer"], elem["points"], elem["points_unchecked"]))
+        answers.append(QuestionMultipleChoice.Answer(elem["answer"], elem["points"], elem["points_unchecked"]))
     selection_limit = yml.get("selection_limit", None)
 
     return QuestionMultipleChoice(
@@ -325,6 +326,12 @@ class QuestionSingleChoice(TestQuestion):
 
 
 class QuestionMultipleChoice(TestQuestion):
+    @dataclass
+    class Answer:
+        answer: str
+        points_checked: float
+        points_unchecked: float
+
     def __init__(
         self,
         title: str,
@@ -333,7 +340,7 @@ class QuestionMultipleChoice(TestQuestion):
         question_html: str,
         page_design: list[PageDesignBlock],
         shuffle: bool,
-        answers: list[tuple[str, float, float]],
+        answers: list["QuestionMultipleChoice.Answer"],
         selection_limit: int | None,
     ):
         super().__init__(title, author, summary, question_html, QuestionType.MULTIPLE_CHOICE, page_design)
@@ -346,12 +353,12 @@ class QuestionMultipleChoice(TestQuestion):
         # choice[image][0]"; filename="", octet-stream
         # choice[points][0]
         answer_options: dict[str, Union[str, Path]] = {}
-        for index, (answer, points_checked, points_unchecked) in enumerate(self.answers):
-            answer_options[f"choice[answer][{index}]"] = answer
+        for index, answer in enumerate(self.answers):
+            answer_options[f"choice[answer][{index}]"] = answer.answer
             answer_options[f"choice[answer_id][{index}]"] = "-1"
             answer_options[f"choice[image][{index}]"] = Path("")
-            answer_options[f"choice[points][{index}]"] = str(points_checked)
-            answer_options[f"choice[points_unchecked][{index}]"] = str(points_unchecked)
+            answer_options[f"choice[points][{index}]"] = str(answer.points_checked)
+            answer_options[f"choice[points_unchecked][{index}]"] = str(answer.points_unchecked)
 
         return {
             **super().get_options(),
@@ -366,7 +373,14 @@ class QuestionMultipleChoice(TestQuestion):
         for title, points, points_unchecked in self.answers:
             answers.append({"answer": title, "points": points, "points_unchecked": points_unchecked})
 
-        return {**super().serialize(), "answers": answers, "shuffle": self.shuffle, "type": "multiple_choice", "selection_limit": self.selection_limit}
+        return {
+            **super().serialize(),
+            "answers": answers,
+            "shuffle": self.shuffle,
+            "type": "multiple_choice",
+            "selection_limit": self.selection_limit,
+        }
+
 
 @dataclass
 class IliasTest:
