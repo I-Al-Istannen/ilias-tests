@@ -168,8 +168,8 @@ class IliasInteractor:
         }
         intro_params = {
             "showinfo": "1",  # show users the info tab
-            "intro_enabled": "1",  # show text before the test
-            "introduction": intro_text,  # the text
+            "intro_enabled": "1" if intro_text else "0",  # show text before the test
+            "introduction": intro_text,  # the text. Must not be empty
         }
         access_params = {"starting_time": _format_time(starting_time), "ending_time": _format_time(ending_time)}
         run_test_params = {
