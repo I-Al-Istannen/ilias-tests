@@ -695,7 +695,7 @@ def _parse_student_question_result(
     return student_mail, graded_question
 
 
-def manual_grading_feedback_md_to_html(markdown: str) -> str:
+def manual_grading_feedback_md_to_html(markdown: str, question: str) -> str:
     html = markdown2.markdown(markdown, extras=["fenced-code-blocks", "tables", "strike", "code-friendly"])
     bs4 = soupify(html.encode())
 
@@ -704,4 +704,38 @@ def manual_grading_feedback_md_to_html(markdown: str) -> str:
         quote.name = "div"
         quote["style"] = "border-left: 4px solid #d1d9e0; color: #59636e; padding-left: 1em;"
 
-    return bs4.decode_contents()
+    # Unwrap all elements with tag name starting with "div-"
+    for it in bs4.select("div-"):
+        it.unwrap()
+
+    # Remove all empty div elements
+    for it in bs4.select("div"):
+        if not it.get_text(strip=True):
+            it.decompose()
+
+    # Unwrap all span elements whose parent is a div
+    for it in bs4.select("span"):
+        if it.parent.name.lower() == "div":
+            it.unwrap()
+
+    # Set font family to monospace for all elements with class "block"
+    for it in bs4.select(".block"):
+        it["style"] = "font-family: monospace"
+
+    for it in bs4.find_all(attrs={"style": lambda x: x and "nowrap" in x, "class": "pre"}):
+        it["style"] = it["style"].replace("white-space: nowrap", "").strip()
+        if not it["style"].replace(";", ""):
+            del it["style"]
+
+    for it in bs4.find_all(attrs={"class": "hr"}):
+        it.decompose()
+
+    for it in bs4.find_all(attrs={"class": lambda x: x is not None}):
+        del it["class"]
+
+    res = bs4.decode_contents()
+    if len(res) > 3800:
+        log.warn(f"        Truncating feedback for {question!r} to 3800 characters. Original length: {len(res)}")
+    res = res[:3800]
+
+    return res
