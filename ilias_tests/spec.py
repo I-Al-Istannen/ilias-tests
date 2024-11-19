@@ -736,6 +736,9 @@ def manual_grading_feedback_md_to_html(markdown: str, question: str) -> str:
     res = bs4.decode_contents()
     if len(res) > 3800:
         log.warn(f"        Truncating feedback for {question!r} to 3800 characters. Original length: {len(res)}")
+        cut_off = len(res) - 3800
+        res = (f"<div style='color: red; font-size: 2rem;'>"
+               f"Feedback was cut off by {cut_off} chars by ILIAS. I will update you once that works.</div>\n") + res
     res = res[:3800]
 
     return res
