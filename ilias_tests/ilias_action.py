@@ -528,16 +528,12 @@ class IliasInteractor:
         data = {
             "cmd[saveManScoringParticipantScreen]": "Speichern",
             "myCounter": [""] * len(results.answers),
-            # "manscoring_done": "1",
-            # "manscoring_notify": "1",
         }
 
         for answer in results.answers:
             question_id = answer.question.id
             data[f"question__{question_id}__points"] = str(answer.points)
-            data[f"question__{question_id}__feedback"] = manual_grading_feedback_md_to_html(
-                answer.feedback, answer.question.text
-            )
+            data[f"question__{question_id}__feedback"] = manual_grading_feedback_md_to_html(answer.feedback)
         save_url = page.get_manual_grading_save_url()
 
         return await self._post_authenticated(save_url, data)
