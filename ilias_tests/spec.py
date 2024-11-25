@@ -692,6 +692,13 @@ def _parse_student_question_result(
         float(points),
         feedback,
     )
+
+    if graded_question.points > graded_question.question.max_points:
+        raise CrawlError(
+            f"Question {question_title!r} for {student_mail!r} exceeds max points "
+            f"({graded_question.points} > {graded_question.question.max_points})"
+        )
+
     return student_mail, graded_question
 
 

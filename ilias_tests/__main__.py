@@ -298,7 +298,7 @@ def main():
     except KeyboardInterrupt:
         log.explain_topic("Interrupted, exiting immediately")
     except CrawlError as e:
-        log.error(str(e))
+        log.error("      " + str(e))
     except Exception:
         log.unexpected_exception()
 
