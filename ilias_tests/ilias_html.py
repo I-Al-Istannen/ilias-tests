@@ -530,12 +530,13 @@ class ExtendedIliasPage(IliasPage):
 
     @staticmethod
     def page_has_failure_alert(page: "ExtendedIliasPage") -> bool:
+        has_danger_alert = False
         for alert in page._soup.find_all(attrs={"role": ["alert", "status"]}):
             if "alert-danger" in alert.get("class", ""):
                 log.warn("Got danger alert")
-                log.warn_contd(alert.getText().strip())
-                return True
-        return False
+                log.warn_contd("  " + alert.getText().strip())
+                has_danger_alert = True
+        return has_danger_alert
 
     def get_test_dashboard_end_all_passes_url(self) -> Optional[str]:
         link = self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=finishAllUserPasses" in x})
