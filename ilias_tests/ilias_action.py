@@ -524,11 +524,22 @@ class IliasInteractor:
             soup_succeeded=is_valid_page,
         )
 
-    async def upload_manual_grading_result(self, page: ExtendedIliasPage, results: ManualGradingParticipantResults):
+    async def upload_manual_grading_result(
+        self,
+        page: ExtendedIliasPage,
+        results: ManualGradingParticipantResults,
+        mark_done: bool = False,
+        notify_users: bool = False,
+    ):
         data = {
             "cmd[saveManScoringParticipantScreen]": "Speichern",
             "myCounter": [""] * len(results.answers),
         }
+
+        if mark_done:
+            data["manscoring_done"] = "1"
+        if notify_users:
+            data["manscoring_notify"] = "1"
 
         for answer in results.answers:
             question_id = answer.question.id

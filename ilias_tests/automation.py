@@ -158,7 +158,13 @@ async def _slurp_participant_results(interactor, page) -> list[ManualGradingPart
     return participant_results
 
 
-async def upload_grading_state(interactor: IliasInteractor, test_page: ExtendedIliasPage, input_dir: Path) -> None:
+async def upload_grading_state(
+    interactor: IliasInteractor,
+    test_page: ExtendedIliasPage,
+    input_dir: Path,
+    mark_done: bool = False,
+    notify_users: bool = False,
+) -> None:
     log.explain_topic("Uploading grading results")
 
     log.status("[bold cyan]", "Grading", f"Parsing saved data from {input_dir}")
@@ -182,7 +188,9 @@ async def upload_grading_state(interactor: IliasInteractor, test_page: ExtendedI
             f"[link={participant.detail_link}][bright_black]{participant.format_name()!r}[/link]",
         )
         page = await interactor.select_page(participant.detail_link)
-        await interactor.upload_manual_grading_result(page, results_by_mail[participant.email])
+        await interactor.upload_manual_grading_result(
+            page, results_by_mail[participant.email], mark_done=mark_done, notify_users=notify_users
+        )
 
 
 async def ilias_glob_regex(
