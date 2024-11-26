@@ -631,6 +631,10 @@ def load_manual_grading_results_from_md(folder: Path) -> dict[str, ManualGrading
                 participant_results[email] = ManualGradingParticipantResults(students[email], [])
             participant_results[email].answers.append(result)
 
+    answer_counts = [len(participant.answers) for participant in participant_results.values()]
+    if len(set(answer_counts)) != 1:
+        raise CrawlError(f"Participants have different number of answers: {answer_counts}")
+
     return participant_results
 
 
