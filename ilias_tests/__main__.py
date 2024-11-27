@@ -165,16 +165,23 @@ async def run_grading(interactor: IliasInteractor, args: argparse.Namespace):
     storage_dir.mkdir(parents=True, exist_ok=True)
 
     if args.download_state:
+        if args.mark_done or args.notify_users:
+            log.warn("    Options --mark-done and --notify-users are ignored when downloading grading state")
         await slurp_grading_state(
             interactor,
             await interactor.select_page(args.test_url),
             storage_dir,
         )
     elif args.upload_state:
+        if not args.mark_done and args.notify_users:
+            log.warn("    Notify must be used together with --mark-done, otherwise students will not see your feedback")
+            return
         await upload_grading_state(
             interactor,
             await interactor.select_page(args.test_url),
             storage_dir,
+            mark_done=args.mark_done,
+            notify_users=args.notify_users,
         )
 
 
@@ -265,6 +272,8 @@ def main():
     grading_group.add_argument(
         "--upload-state", action="store_true", help="upload grading state instead of downloading"
     )
+    manual_grading.add_argument("--mark-done", action="store_true", help="mark the test as done")
+    manual_grading.add_argument("--notify-users", action="store_true", help="send e-mails to users with their results")
 
     args = parser.parse_args()
 
@@ -298,7 +307,7 @@ def main():
     except KeyboardInterrupt:
         log.explain_topic("Interrupted, exiting immediately")
     except CrawlError as e:
-        log.error(str(e))
+        log.error("      " + str(e))
     except Exception:
         log.unexpected_exception()
 
