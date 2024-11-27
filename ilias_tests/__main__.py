@@ -173,6 +173,9 @@ async def run_grading(interactor: IliasInteractor, args: argparse.Namespace):
             storage_dir,
         )
     elif args.upload_state:
+        if not args.mark_done and args.notify_users:
+            log.warn("    Notify must be used together with --mark-done, otherwise students will not see your feedback")
+            return
         await upload_grading_state(
             interactor,
             await interactor.select_page(args.test_url),
