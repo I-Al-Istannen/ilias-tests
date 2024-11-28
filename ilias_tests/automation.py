@@ -154,7 +154,13 @@ async def _slurp_participant_results(interactor, page) -> list[ManualGradingPart
             f"[link={participant.detail_link}][bright_black]{participant.format_name()!r}[/link]",
         )
         participant_page = await interactor.select_page(participant.detail_link)
-        participant_results.append(participant_page.get_manual_grading_participant_results(participant))
+        participant_result = participant_page.get_manual_grading_participant_results(participant)
+        for answer in participant_result.answers:
+            question = answer.question
+            if question.question_type == "file_upload":
+                for file in answer.answer:
+                    await file.download(interactor)
+        participant_results.append(participant_result)
     return participant_results
 
 

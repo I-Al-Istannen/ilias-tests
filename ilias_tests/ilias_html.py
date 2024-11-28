@@ -28,6 +28,7 @@ from .spec import (
     ManualGradingParticipantResults,
     ManualGradingQuestion,
     ManualGradingQuestionType,
+    ProgrammingQuestionAnswer,
 )
 
 
@@ -507,13 +508,16 @@ class ExtendedIliasPage(IliasPage):
         return ManualGradingParticipantResults(participant, questions)
 
     @staticmethod
-    def _get_manual_grading_participant_answer(user_answer: bs4.Tag) -> Optional[tuple[ManualGradingQuestionType, str]]:
+    def _get_manual_grading_participant_answer(
+        user_answer: bs4.Tag,
+    ) -> Optional[tuple[ManualGradingQuestionType, str | list[ProgrammingQuestionAnswer]]]:
         if text_answer := user_answer.select_one(".ilc_question_TextQuestion"):
             text_answer = text_answer.select_one(".solutionbox")
             if text_answer:
                 return "freeform_text", text_answer.decode_contents()
-        elif user_answer.select_one(".ilc_question_FileUpload") is not None:
-            return "file_upload", "file_upload"
+        elif file_answer := user_answer.select_one(".ilc_question_FileUpload"):
+            downloadables = [(file.getText().strip(), file["href"]) for file in file_answer.select('[download=""]')]
+            return "file_upload", [ProgrammingQuestionAnswer(name, uri) for name, uri in downloadables]
         return None
 
     def get_manual_grading_save_url(self):

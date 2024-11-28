@@ -536,7 +536,9 @@ class ProgrammingQuestionAnswer:
 
     async def download(self, interactor: "IliasInteractor") -> None:
         log.explain(f"trying to download {self.file_name} from {self.file_uri}")
-        downloaded_name, downloaded_content = await interactor.download_file_data(self.file_uri)
+        result = await interactor.download_file_data(self.file_uri)
+        assert result is not None
+        downloaded_name, downloaded_content = result
         # downloaded name is not the actual file name
         # assert self.file_name == downloaded_name
         self.file_content = downloaded_content
@@ -545,7 +547,7 @@ class ProgrammingQuestionAnswer:
 @dataclass
 class ManualGradingGradedQuestion:
     question: ManualGradingQuestion
-    answer: str
+    answer: str | list[ProgrammingQuestionAnswer]
     points: float
     feedback: str
 
@@ -584,13 +586,18 @@ def manual_grading_write_question_md(
     for result in results:
         participant = result.participant
         if question_result := result.get_question(question.id):
+            is_upload = question.question_type == "file_upload"
             md += f"## {participant.format_name()}\n\n"
             md += f"### Answer {question_result.points} / {question.max_points}\n"
             md += "```\n"
-            md += convert(question_result.answer)
+            if not is_upload:
+                assert type(question_result.answer) is str
+                md += convert(question_result.answer)
+            else:
+                md += 'file_upload'
             md += "\n```\n"
             md += "----\n"
-            if question.question_type == "file_upload":
+            if is_upload:
                 # Already formatted
                 md += f"{question_result.feedback.strip()}\n\n"
             else:

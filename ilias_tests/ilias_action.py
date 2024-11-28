@@ -461,7 +461,7 @@ class IliasInteractor:
         return new_id
 
     # returns data
-    async def download_file_data(self, url: str) -> tuple[str, bytes] | None:
+    async def download_file_data(self, url: str) -> tuple[str, str] | None:
         async with self.session.get(url) as response:
             if 200 <= response.status < 300:
                 filename = response.headers.get("content-description", "")
