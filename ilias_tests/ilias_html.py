@@ -497,13 +497,24 @@ class ExtendedIliasPage(IliasPage):
             )
             points = self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input").get("value", "0")
             max_points = self._soup.select_one(f"#question__{question_id}__maxpoints").getText().strip()
-            feedback = self._soup.select_one(f"#question__{question_id}__feedback").getText().strip()
+            feedback_element = self._soup.select_one(f"[name=question__{question_id}__feedback]")
+            final_feedback = feedback_element.name == "input"
+            match feedback_element.name:
+                # this area has not been finalized yet
+                case "textarea":
+                    feedback = feedback_element.getText().strip()
+                case "input":
+                    feedback = feedback_element.get("value")
+            if feedback == "":
+                feedback = None
+
             questions.append(
                 ManualGradingGradedQuestion(
                     ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
                     answer_text,
                     float(points),
                     feedback,
+                    final_feedback,
                 )
             )
         return ManualGradingParticipantResults(participant, questions)
