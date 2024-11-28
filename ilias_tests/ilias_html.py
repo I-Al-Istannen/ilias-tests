@@ -57,9 +57,16 @@ class ExtendedIliasPage(IliasPage):
 
     def is_test_page(self):
         log.explain_topic("Verifying page is a test")
-        if "cmdclass=ilobjtestgui" in self.normalized_url():
-            log.explain("Page matched test url fragment")
-            return True
+        # use classes here that are plausible for copy-pasted links
+        possible_cmdclasses = (
+            "cmdclass=ilobjtestgui",
+            "cmdclass=ilparticipantstestresultsgui",
+            "cmdclass=iltestscoringbyquestionsgui",
+        )
+        for cmdclass in possible_cmdclasses:
+            if cmdclass in self.normalized_url():
+                log.explain("Page matched test url fragment")
+                return True
         header = self._soup.find(id="headerimage")
         if not header:
             log.explain("Could not find headerimage")
