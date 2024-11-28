@@ -460,6 +460,18 @@ class IliasInteractor:
         log.explain(f"Created block has id {new_id}")
         return new_id
 
+    # returns data
+    async def download_file_data(self, url: str) -> tuple[str, bytes] | None:
+        async with self.session.get(url) as response:
+            if 200 <= response.status < 300:
+                filename = response.headers.get("content-description", "")
+                content = await response.read()
+                return (filename, content.decode("utf-8"))
+            else:
+                log.explain(f"Got non 200 status code: {response.status}")
+        return None
+
+    # stores the data on disk
     async def download_file(self, url: str, output_folder: Path, prefix: str):
         log.explain_topic(f"Downloading file {prefix!r} from '{url}' to {fmt_path(output_folder)}")
         auth_id = await self._current_auth_id()
@@ -467,18 +479,17 @@ class IliasInteractor:
             output_folder.mkdir(parents=True, exist_ok=True)
 
         async def do_request():
-            async with self.session.get(url) as response:
-                if 200 <= response.status < 300:
-                    filename = prefix + response.headers.get("content-description", "")
-                    content = await response.read()
-                    out_path = output_folder / filename
-                    log.explain(f"Writing to {fmt_path(out_path)}")
-                    with open(out_path, "wb") as file:
-                        file.write(content)
-                    return out_path
-                else:
-                    log.explain(f"Got non 200 status code: {response.status}")
-            return None
+            result = await self.download_file_data(url)
+            if result is None:
+                return None
+            downloaded_filename, content = result
+            filename = prefix + downloaded_filename
+            content = content
+            out_path = output_folder / filename
+            log.explain(f"Writing to {fmt_path(out_path)}")
+            with open(out_path, "wb") as file:
+                file.write(content)
+            return out_path
 
         if output_file := await do_request():
             return output_file
