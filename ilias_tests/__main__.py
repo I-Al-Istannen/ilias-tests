@@ -3,13 +3,22 @@ import asyncio
 import configparser
 import sys
 from pathlib import Path, PurePath
+import json
+from typing import Any
 
 from PFERD.auth import KeyringAuthenticator, KeyringAuthSection, SimpleAuthenticator, SimpleAuthSection
 from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import fmt_path
 
-from .automation import slurp_tests_from_folder, add_test, ilias_glob_regex, slurp_grading_state, upload_grading_state
+from .automation import (
+    slurp_tests_from_folder,
+    add_test,
+    ilias_glob_regex,
+    slurp_grading_state,
+    upload_grading_state,
+    slurp_results,
+)
 from .ilias_action import IliasInteractor
 from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex, TestTab
 
@@ -158,6 +167,32 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
             await interactor.configure_test_scoring(tab)
 
 
+async def run_results(interactor: IliasInteractor, args: argparse.Namespace):
+    log.status("[bold magenta]", "Setup", "Initializing")
+
+    replicate_glob_regex: str = args.replicate
+
+    target_page = await interactor.select_page(args.test_or_folder)
+    if replicate_glob_regex:
+        log.explain_topic(f"Resolving globs for {replicate_glob_regex!r} on {target_page}")
+        target_elements = await ilias_glob_regex(interactor, target_page, replicate_glob_regex)
+    else:
+        target_elements = [(PurePath("test"), target_page)]
+
+    log.status("[bold cyan]", "Results", f"Gathering results for {len(target_elements)} test(s)")
+
+    result: dict[str, Any] = dict()
+    for path, test_page in target_elements:
+        if not test_page.is_test_page():
+            log.warn("        Selected element is no test. Maybe your selector is incorrect?")
+            continue
+        log.status("[cyan]", "Results", f"  Downloading {fmt_path(path)}")
+        result |= await slurp_results(interactor, test_page, str(path))
+    if not args.target_file.parent.exists():
+        args.target_file.parent.mkdir(parents=True, exist_ok=True)
+    args.target_file.write_text(json.dumps(result))
+
+
 async def run_grading(interactor: IliasInteractor, args: argparse.Namespace):
     log.status("[bold magenta]", "Setup", "Initializing")
 
@@ -260,6 +295,22 @@ def main():
     publish_group.add_argument("--publish", action="store_true", help="sets a tests status to online")
     publish_group.add_argument("--unpublish", action="store_true", help="sets a tests status to offline")
 
+    results = subparsers.add_parser("results", help="Get results of all students for this ILIAS test")
+    results.add_argument(
+        "test_or_folder",
+        type=str,
+        metavar="URL",
+        help="the URL of the test to work on, or a folder if combined with '--replicate'",
+    )
+    results.add_argument("target_file", type=Path, help="where to store the resulting json file")
+    results.add_argument(
+        "--replicate",
+        metavar="REGEX",
+        type=str,
+        help="a glob-like regex (directories separated by '/') defining all tests you want to be affected, "
+        "if the test url is a folder",
+    )
+
     manual_grading = subparsers.add_parser(
         "grading", help="Manually grade tests in ILIAS (EXPERIMENTAL, HERE BE DRAGONS)"
     )
@@ -291,6 +342,8 @@ def main():
             run_command = run_passes
         case "configure":
             run_command = run_configure
+        case "results":
+            run_command = run_results
         case "grading":
             run_command = run_grading
         case _:

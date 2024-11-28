@@ -1,5 +1,6 @@
 from pathlib import Path, PurePath
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Any
+from dataclasses import asdict
 
 from PFERD.crawl.ilias.kit_ilias_html import IliasElementType
 from PFERD.logging import log
@@ -119,6 +120,23 @@ def _download_files(interactor: IliasInteractor, title: str, aux_path: Path) -> 
         return path
 
     return inner
+
+
+async def slurp_results(interactor: IliasInteractor, test_page: ExtendedIliasPage, result_key: str) -> dict[str, Any]:
+    log.explain("Slurping test results")
+
+    log.explain("Navigating to manual grading tab, skipping multiple choice questions")
+    tab_page = await interactor.select_tab(test_page, TestTab.MANUAL_GRADING)
+
+    log.explain("Navigating to manual grading per participant")
+    tab_page = await interactor.select_page(tab_page.get_manual_grading_per_participant_url())
+
+    log.explain("Showing all participants")
+    page = await interactor.set_manual_grading_filter_show_all(tab_page)
+    participant_results = await _slurp_participant_results(interactor, page)
+    result_dict = {result_key: [asdict(p) for p in participant_results]}
+    return result_dict
+
 
 
 async def slurp_grading_state(interactor: IliasInteractor, test_page: ExtendedIliasPage, output_dir: Path) -> None:
