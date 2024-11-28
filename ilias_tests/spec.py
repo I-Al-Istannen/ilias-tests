@@ -511,6 +511,7 @@ class ManualGradingParticipantInfo:
     last_name: str
     first_name: str
     email: str
+    username: str
     detail_link: str
 
     def format_name(self) -> str:
@@ -669,8 +670,9 @@ def _parse_students_from_md(text: str):
     for student in students:
         student = student.replace("## ", "")
         email = student[: student.find("(")].strip()
+        username = email.split("@")[0]
         last_name, first_name = student[student.find("(") + 1 : student.find(")")].split(", ")
-        results[email] = ManualGradingParticipantInfo(last_name, first_name, email, "")
+        results[email] = ManualGradingParticipantInfo(last_name, first_name, email, username, "")
 
     return results
 

@@ -480,8 +480,9 @@ class ExtendedIliasPage(IliasPage):
             last_name = cols[0].getText().strip()
             first_name = cols[1].getText().strip()
             email = cols[2].getText().strip()
+            username = email.split("@")[0]
             detail_link = self._abs_url_from_link(cols[3].select_one("a"))
-            participants.append(ManualGradingParticipantInfo(last_name, first_name, email, detail_link))
+            participants.append(ManualGradingParticipantInfo(last_name, first_name, email, username, detail_link))
         return participants
 
     def get_manual_grading_participant_results(
