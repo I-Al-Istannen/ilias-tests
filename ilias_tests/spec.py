@@ -530,7 +530,8 @@ class ManualGradingGradedQuestion:
     question: ManualGradingQuestion
     answer: str
     points: float
-    feedback: str
+    feedback: str | None
+    final_feedback: bool
 
 
 @dataclass
@@ -573,6 +574,8 @@ def manual_grading_write_question_md(
             md += convert(question_result.answer)
             md += "\n```\n"
             md += "----\n"
+            if question_result.feedback is None:
+                question_result.feedback = ""
             if question.question_type == "file_upload":
                 # Already formatted
                 md += f"{question_result.feedback.strip()}\n\n"
