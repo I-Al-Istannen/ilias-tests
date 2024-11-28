@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any, Union, Literal
+from typing import Optional, Any, Union, Literal, TYPE_CHECKING
 
 import markdown2
 import yaml
@@ -13,6 +13,9 @@ from PFERD.logging import log
 from PFERD.utils import soupify
 from markdownify import markdownify
 from slugify import slugify
+
+if TYPE_CHECKING:
+    from .ilias_action import IliasInteractor
 
 
 class QuestionType(Enum):
@@ -523,6 +526,20 @@ class ManualGradingQuestion:
     text: str
     max_points: float
     question_type: ManualGradingQuestionType
+
+
+@dataclass
+class ProgrammingQuestionAnswer:
+    file_name: str
+    file_uri: str
+    file_content: bytes | None = None
+
+    async def download(self, interactor: "IliasInteractor") -> None:
+        log.explain(f"trying to download {self.file_name} from {self.file_uri}")
+        downloaded_name, downloaded_content = await interactor.download_file_data(self.file_uri)
+        # downloaded name is not the actual file name
+        # assert self.file_name == downloaded_name
+        self.file_content = downloaded_content
 
 
 @dataclass
