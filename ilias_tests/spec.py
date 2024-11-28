@@ -596,7 +596,7 @@ def manual_grading_write_question_md(
                 assert type(question_result.answer) is str
                 md += convert(question_result.answer)
             else:
-                md += 'file_upload'
+                md += "file_upload"
             md += "\n```\n"
             md += "----\n"
             if question_result.feedback is None:

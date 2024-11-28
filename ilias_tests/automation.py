@@ -138,7 +138,6 @@ async def slurp_results(interactor: IliasInteractor, test_page: ExtendedIliasPag
     return result_dict
 
 
-
 async def slurp_grading_state(interactor: IliasInteractor, test_page: ExtendedIliasPage, output_dir: Path) -> None:
     log.explain_topic("Slurping grading results")
 
