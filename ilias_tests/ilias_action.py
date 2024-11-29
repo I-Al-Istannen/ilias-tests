@@ -461,12 +461,12 @@ class IliasInteractor:
         return new_id
 
     # returns data
-    async def download_file_data(self, url: str) -> tuple[str, str] | None:
+    async def download_file_data(self, url: str) -> tuple[str, bytes] | None:
         async with self.session.get(url) as response:
             if 200 <= response.status < 300:
                 filename = response.headers.get("content-description", "")
                 content = await response.read()
-                return (filename, content.decode("utf-8"))
+                return filename, content
             else:
                 log.explain(f"Got non 200 status code: {response.status}")
         return None
@@ -484,7 +484,6 @@ class IliasInteractor:
                 return None
             downloaded_filename, content = result
             filename = prefix + downloaded_filename
-            content = content
             out_path = output_folder / filename
             log.explain(f"Writing to {fmt_path(out_path)}")
             with open(out_path, "wb") as file:
@@ -527,6 +526,7 @@ class IliasInteractor:
         data = {"participant_status": "3", "cmd[applyManScoringParticipantsFilter]": "Filter+anwenden"}
 
         def is_valid_page(page: ExtendedIliasPage):
+            # noinspection PyProtectedMember
             return page._soup.find(id="participant_status").find("option", selected=True).get("value") == "3"
 
         return await self._post_authenticated(
