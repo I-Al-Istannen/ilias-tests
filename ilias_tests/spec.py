@@ -533,7 +533,7 @@ class ManualGradingQuestion:
 class ProgrammingQuestionAnswer:
     file_name: str
     file_uri: str
-    file_content: bytes | None = None
+    file_content: str | None = None
 
     async def download(self, interactor: "IliasInteractor") -> None:
         log.explain(f"trying to download {self.file_name} from {self.file_uri}")
@@ -542,7 +542,7 @@ class ProgrammingQuestionAnswer:
         downloaded_name, downloaded_content = result
         # downloaded name is not the actual file name
         # assert self.file_name == downloaded_name
-        self.file_content = downloaded_content
+        self.file_content = downloaded_content.decode("utf-8")
 
 
 @dataclass
