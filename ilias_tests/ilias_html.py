@@ -28,6 +28,7 @@ from .spec import (
     ManualGradingParticipantResults,
     ManualGradingQuestion,
     ManualGradingQuestionType,
+    ProgrammingQuestionAnswer,
 )
 
 
@@ -314,7 +315,9 @@ class ExtendedIliasPage(IliasPage):
                 answer_points_unchecked = float(
                     answer_table.find(id=inpt["id"].replace("answer", "points_unchecked")).get("value", "0").strip()
                 )
-                answers.append((answer_value, answer_points_checked, answer_points_unchecked))
+                answers.append(
+                    QuestionMultipleChoice.Answer(answer_value, answer_points_checked, answer_points_unchecked)
+                )
 
             return QuestionMultipleChoice(
                 title=title,
@@ -486,8 +489,9 @@ class ExtendedIliasPage(IliasPage):
             last_name = cols[0].getText().strip()
             first_name = cols[1].getText().strip()
             email = cols[2].getText().strip()
+            username = email.split("@")[0]
             detail_link = self._abs_url_from_link(cols[3].select_one("a"))
-            participants.append(ManualGradingParticipantInfo(last_name, first_name, email, detail_link))
+            participants.append(ManualGradingParticipantInfo(last_name, first_name, email, username, detail_link))
         return participants
 
     def get_manual_grading_participant_results(
@@ -497,30 +501,50 @@ class ExtendedIliasPage(IliasPage):
         for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):
             match = re.compile(r"\[ID: (\d+)]").search(question.getText())
             question_id = match.group(1)
-            answer_type, answer_text = self._get_manual_grading_participant_answer(
+            answer_type, answer_value = self._get_manual_grading_participant_answer(
                 question.find_next(id="il_prop_cont_")
             )
             points = self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input").get("value", "0")
             max_points = self._soup.select_one(f"#question__{question_id}__maxpoints").getText().strip()
-            feedback = self._soup.select_one(f"#question__{question_id}__feedback").getText().strip()
+            feedback_element = self._soup.select_one(f"[name=question__{question_id}__feedback]")
+
+            match feedback_element.name:
+                # The feedback hasn't been finalized yet => It is represented as a text area
+                case "textarea":
+                    feedback = feedback_element.getText().strip()
+                case "input":
+                    feedback = feedback_element.get("value")
+                case _:
+                    # Should be unreachable, until ILIAS decides to toss things up
+                    raise CrawlError(f"Unknown feedback element type: {feedback_element.name}")
+
+            if feedback == "":
+                feedback = None
+
+            is_final_feedback = feedback_element.name == "input"
+
             questions.append(
                 ManualGradingGradedQuestion(
                     ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
-                    answer_text,
+                    answer_value,
                     float(points),
                     feedback,
+                    is_final_feedback,
                 )
             )
         return ManualGradingParticipantResults(participant, questions)
 
     @staticmethod
-    def _get_manual_grading_participant_answer(user_answer: bs4.Tag) -> Optional[tuple[ManualGradingQuestionType, str]]:
+    def _get_manual_grading_participant_answer(
+        user_answer: bs4.Tag,
+    ) -> Optional[tuple[ManualGradingQuestionType, str | list[ProgrammingQuestionAnswer]]]:
         if text_answer := user_answer.select_one(".ilc_question_TextQuestion"):
             text_answer = text_answer.select_one(".solutionbox")
             if text_answer:
                 return "freeform_text", text_answer.decode_contents()
-        elif user_answer.select_one(".ilc_question_FileUpload") is not None:
-            return "file_upload", "file_upload"
+        elif file_answer := user_answer.select_one(".ilc_question_FileUpload"):
+            downloadables = [(file.getText().strip(), file["href"]) for file in file_answer.select('[download=""]')]
+            return "file_upload", [ProgrammingQuestionAnswer(name, uri) for name, uri in downloadables]
         return None
 
     def get_manual_grading_save_url(self):

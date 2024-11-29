@@ -1,10 +1,10 @@
 import abc
 import datetime
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any, Union, Literal
+from typing import Optional, Any, Union, Literal, TYPE_CHECKING
 
 import markdown2
 import yaml
@@ -13,6 +13,9 @@ from PFERD.logging import log
 from PFERD.utils import soupify
 from markdownify import markdownify
 from slugify import slugify
+
+if TYPE_CHECKING:
+    from .ilias_action import IliasInteractor
 
 
 class QuestionType(Enum):
@@ -340,7 +343,7 @@ class QuestionMultipleChoice(TestQuestion):
     @dataclass
     class Answer:
         answer: str
-        points_checked: float
+        points: float
         points_unchecked: float
 
     def __init__(
@@ -368,7 +371,7 @@ class QuestionMultipleChoice(TestQuestion):
             answer_options[f"choice[answer][{index}]"] = answer.answer
             answer_options[f"choice[answer_id][{index}]"] = "-1"
             answer_options[f"choice[image][{index}]"] = Path("")
-            answer_options[f"choice[points][{index}]"] = str(answer.points_checked)
+            answer_options[f"choice[points][{index}]"] = str(answer.points)
             answer_options[f"choice[points_unchecked][{index}]"] = str(answer.points_unchecked)
 
         return {
@@ -380,9 +383,9 @@ class QuestionMultipleChoice(TestQuestion):
         } | (dict() if self.selection_limit is None else {"selection_limit": str(self.selection_limit)})
 
     def serialize(self) -> dict[str, Any]:
-        answers = []
-        for title, points, points_unchecked in self.answers:
-            answers.append({"answer": title, "points": points, "points_unchecked": points_unchecked})
+        # The typechecker is wrong, see https://youtrack.jetbrains.com/issue/PY-76059/.
+        # noinspection PyTypeChecker
+        answers = [asdict(answer) for answer in self.answers]
 
         return {
             **super().serialize(),
@@ -508,6 +511,7 @@ class ManualGradingParticipantInfo:
     last_name: str
     first_name: str
     email: str
+    username: str
     detail_link: str
 
     def format_name(self) -> str:
@@ -526,11 +530,28 @@ class ManualGradingQuestion:
 
 
 @dataclass
+class ProgrammingQuestionAnswer:
+    file_name: str
+    file_uri: str
+    file_content: str | None = None
+
+    async def download(self, interactor: "IliasInteractor") -> None:
+        log.explain(f"trying to download {self.file_name} from {self.file_uri}")
+        result = await interactor.download_file_data(self.file_uri)
+        assert result is not None
+        downloaded_name, downloaded_content = result
+        # downloaded name is not the actual file name
+        # assert self.file_name == downloaded_name
+        self.file_content = downloaded_content.decode("utf-8")
+
+
+@dataclass
 class ManualGradingGradedQuestion:
     question: ManualGradingQuestion
-    answer: str
+    answer: str | list[ProgrammingQuestionAnswer]
     points: float
-    feedback: str
+    feedback: str | None
+    final_feedback: bool
 
 
 @dataclass
@@ -567,13 +588,20 @@ def manual_grading_write_question_md(
     for result in results:
         participant = result.participant
         if question_result := result.get_question(question.id):
+            is_upload = question.question_type == "file_upload"
             md += f"## {participant.format_name()}\n\n"
             md += f"### Answer {question_result.points} / {question.max_points}\n"
             md += "```\n"
-            md += convert(question_result.answer)
+            if not is_upload:
+                assert type(question_result.answer) is str
+                md += convert(question_result.answer)
+            else:
+                md += "file_upload"
             md += "\n```\n"
             md += "----\n"
-            if question.question_type == "file_upload":
+            if question_result.feedback is None:
+                question_result.feedback = ""
+            if is_upload:
                 # Already formatted
                 md += f"{question_result.feedback.strip()}\n\n"
             else:
@@ -645,8 +673,9 @@ def _parse_students_from_md(text: str):
     for student in students:
         student = student.replace("## ", "")
         email = student[: student.find("(")].strip()
+        username = email.split("@")[0]
         last_name, first_name = student[student.find("(") + 1 : student.find(")")].split(", ")
-        results[email] = ManualGradingParticipantInfo(last_name, first_name, email, "")
+        results[email] = ManualGradingParticipantInfo(last_name, first_name, email, username, "")
 
     return results
 
@@ -695,6 +724,7 @@ def _parse_student_question_result(
         answer,
         float(points),
         feedback,
+        final_feedback=False,  # we just do not finalize it from md
     )
 
     if graded_question.points > graded_question.question.max_points:
