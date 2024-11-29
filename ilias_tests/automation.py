@@ -122,25 +122,20 @@ def _download_files(interactor: IliasInteractor, title: str, aux_path: Path) -> 
     return inner
 
 
-async def slurp_results(interactor: IliasInteractor, test_page: ExtendedIliasPage, result_key: str) -> dict[str, Any]:
-    log.explain("Slurping test results")
-
-    log.explain("Navigating to manual grading tab, skipping multiple choice questions")
-    tab_page = await interactor.select_tab(test_page, TestTab.MANUAL_GRADING)
-
-    log.explain("Navigating to manual grading per participant")
-    tab_page = await interactor.select_page(tab_page.get_manual_grading_per_participant_url())
-
-    log.explain("Showing all participants")
-    page = await interactor.set_manual_grading_filter_show_all(tab_page)
-    participant_results = await _slurp_participant_results(interactor, page)
-    result_dict = {result_key: [asdict(p) for p in participant_results]}
-    return result_dict
+async def slurp_grading_state_to_md(
+    interactor: IliasInteractor, test_page: ExtendedIliasPage, output_dir: Path
+) -> None:
+    participant_results = await slurp_participant_results(interactor, test_page)
+    questions = set([answer.question for res in participant_results for answer in res.answers])
+    for question in questions:
+        with open(output_dir / f"{question.id}.md", "w") as f:
+            f.write(manual_grading_write_question_md(participant_results, question))
 
 
-async def slurp_grading_state(interactor: IliasInteractor, test_page: ExtendedIliasPage, output_dir: Path) -> None:
-    log.explain_topic("Slurping grading results")
-
+async def slurp_participant_results(
+    interactor: IliasInteractor, test_page: ExtendedIliasPage
+) -> list[ManualGradingParticipantResults]:
+    log.explain_topic("Slurping test results")
     log.explain("Navigating to manual grading tab")
     tab_page = await interactor.select_tab(test_page, TestTab.MANUAL_GRADING)
 
@@ -150,14 +145,6 @@ async def slurp_grading_state(interactor: IliasInteractor, test_page: ExtendedIl
     log.explain("Showing all participants")
     page = await interactor.set_manual_grading_filter_show_all(tab_page)
 
-    participant_results = await _slurp_participant_results(interactor, page)
-    questions = set([answer.question for res in participant_results for answer in res.answers])
-    for question in questions:
-        with open(output_dir / f"{question.id}.md", "w") as f:
-            f.write(manual_grading_write_question_md(participant_results, question))
-
-
-async def _slurp_participant_results(interactor, page) -> list[ManualGradingParticipantResults]:
     participant_results = []
     participant_infos = page.get_manual_grading_participant_infos()
 

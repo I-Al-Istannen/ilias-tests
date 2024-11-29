@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import configparser
 import sys
+from dataclasses import asdict
 from pathlib import Path, PurePath
 import json
 from typing import Any
@@ -15,9 +16,9 @@ from .automation import (
     slurp_tests_from_folder,
     add_test,
     ilias_glob_regex,
-    slurp_grading_state,
+    slurp_grading_state_to_md,
     upload_grading_state,
-    slurp_results,
+    slurp_participant_results,
 )
 from .ilias_action import IliasInteractor
 from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex, TestTab
@@ -187,9 +188,15 @@ async def run_results(interactor: IliasInteractor, args: argparse.Namespace):
             log.warn("        Selected element is no test. Maybe your selector is incorrect?")
             continue
         log.status("[cyan]", "Results", f"  Downloading {fmt_path(path)}")
-        result |= await slurp_results(interactor, test_page, str(path))
+        participant_results = await slurp_participant_results(interactor, test_page)
+
+        # The typechecker is wrong, see https://youtrack.jetbrains.com/issue/PY-76059/.
+        # noinspection PyTypeChecker
+        result[str(path)] = [asdict(p) for p in participant_results]
+
     if not args.target_file.parent.exists():
         args.target_file.parent.mkdir(parents=True, exist_ok=True)
+
     args.target_file.write_text(json.dumps(result))
 
 
@@ -202,7 +209,7 @@ async def run_grading(interactor: IliasInteractor, args: argparse.Namespace):
     if args.download_state:
         if args.mark_done or args.notify_users:
             log.warn("    Options --mark-done and --notify-users are ignored when downloading grading state")
-        await slurp_grading_state(
+        await slurp_grading_state_to_md(
             interactor,
             await interactor.select_page(args.test_url),
             storage_dir,
