@@ -1,7 +1,7 @@
 import abc
 import datetime
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Any, Union, Literal, TYPE_CHECKING
@@ -343,7 +343,7 @@ class QuestionMultipleChoice(TestQuestion):
     @dataclass
     class Answer:
         answer: str
-        points_checked: float
+        points: float
         points_unchecked: float
 
     def __init__(
@@ -371,7 +371,7 @@ class QuestionMultipleChoice(TestQuestion):
             answer_options[f"choice[answer][{index}]"] = answer.answer
             answer_options[f"choice[answer_id][{index}]"] = "-1"
             answer_options[f"choice[image][{index}]"] = Path("")
-            answer_options[f"choice[points][{index}]"] = str(answer.points_checked)
+            answer_options[f"choice[points][{index}]"] = str(answer.points)
             answer_options[f"choice[points_unchecked][{index}]"] = str(answer.points_unchecked)
 
         return {
@@ -383,9 +383,9 @@ class QuestionMultipleChoice(TestQuestion):
         } | (dict() if self.selection_limit is None else {"selection_limit": str(self.selection_limit)})
 
     def serialize(self) -> dict[str, Any]:
-        answers = []
-        for title, points, points_unchecked in self.answers:
-            answers.append({"answer": title, "points": points, "points_unchecked": points_unchecked})
+        # The typechecker is wrong, see https://youtrack.jetbrains.com/issue/PY-76059/.
+        # noinspection PyTypeChecker
+        answers = [asdict(answer) for answer in self.answers]
 
         return {
             **super().serialize(),
@@ -724,6 +724,7 @@ def _parse_student_question_result(
         answer,
         float(points),
         feedback,
+        final_feedback=False,  # we just do not finalize it from md
     )
 
     if graded_question.points > graded_question.question.max_points:

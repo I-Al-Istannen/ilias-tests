@@ -315,7 +315,9 @@ class ExtendedIliasPage(IliasPage):
                 answer_points_unchecked = float(
                     answer_table.find(id=inpt["id"].replace("answer", "points_unchecked")).get("value", "0").strip()
                 )
-                answers.append((answer_value, answer_points_checked, answer_points_unchecked))
+                answers.append(
+                    QuestionMultipleChoice.Answer(answer_value, answer_points_checked, answer_points_unchecked)
+                )
 
             return QuestionMultipleChoice(
                 title=title,
@@ -499,29 +501,35 @@ class ExtendedIliasPage(IliasPage):
         for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):
             match = re.compile(r"\[ID: (\d+)]").search(question.getText())
             question_id = match.group(1)
-            answer_type, answer_text = self._get_manual_grading_participant_answer(
+            answer_type, answer_value = self._get_manual_grading_participant_answer(
                 question.find_next(id="il_prop_cont_")
             )
             points = self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input").get("value", "0")
             max_points = self._soup.select_one(f"#question__{question_id}__maxpoints").getText().strip()
             feedback_element = self._soup.select_one(f"[name=question__{question_id}__feedback]")
-            final_feedback = feedback_element.name == "input"
+
             match feedback_element.name:
-                # this area has not been finalized yet
+                # The feedback hasn't been finalized yet => It is represented as a text area
                 case "textarea":
                     feedback = feedback_element.getText().strip()
                 case "input":
                     feedback = feedback_element.get("value")
+                case _:
+                    # Should be unreachable, until ILIAS decides to toss things up
+                    raise CrawlError(f"Unknown feedback element type: {feedback_element.name}")
+
             if feedback == "":
                 feedback = None
+
+            is_final_feedback = feedback_element.name == "input"
 
             questions.append(
                 ManualGradingGradedQuestion(
                     ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
-                    answer_text,
+                    answer_value,
                     float(points),
                     feedback,
-                    final_feedback,
+                    is_final_feedback,
                 )
             )
         return ManualGradingParticipantResults(participant, questions)
