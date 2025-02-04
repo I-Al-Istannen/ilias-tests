@@ -482,9 +482,15 @@ class ExtendedIliasPage(IliasPage):
         return self._abs_url_from_relative(link)
 
     def get_manual_grading_participant_infos(self) -> list[ManualGradingParticipantInfo]:
-        participants = []
         table = self._soup.find(name="table", id="manScorePartTable")
-        for row in table.select("tbody > tr"):
+        rows = list(table.select("tbody > tr"))
+        if len(rows) == 1:
+            cols = list(rows[0].select("td"))
+            # no entries
+            if len(cols) == 1:
+                return []
+        participants = []
+        for row in rows:
             cols = list(row.select("td"))
             last_name = cols[0].getText().strip()
             first_name = cols[1].getText().strip()
