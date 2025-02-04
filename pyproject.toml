@@ -1,6 +1,6 @@
 [project]
 name = "ilias-tests"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
   "markdown2>=2.5.1",
   "markdownify>=0.13.1",
