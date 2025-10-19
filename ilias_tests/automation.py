@@ -79,6 +79,10 @@ async def slurp_tests_from_folder(interactor: IliasInteractor, folder_url: str, 
 
             questions = await slurp_questions_from_test(interactor, test_page, aux_path)
 
+            if not questions:
+                log.warn(f"Test {child.name!r} has no questions, skipping")
+                continue
+
             log.explain_topic("Converting settings page to test")
             tests.append(properties_page.get_test_reconstruct_from_properties(questions))
         else:

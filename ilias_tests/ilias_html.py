@@ -240,6 +240,11 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError("Did not find questions table")
         result = []
         for row in _(table.find(name="tbody")).find_all(name="tr"):
+            if len(row.find_all(name="td")) == 1:
+                # probably "no questions" row
+                log.explain(f"Skipping row with single td: {row}")
+                continue
+
             order_td = row.find(name="td", attrs={"name": lambda x: x is not None and x.startswith("order[")})
             if not order_td:
                 alert_message = ""
@@ -457,15 +462,40 @@ class ExtendedIliasPage(IliasPage):
         return blocks
 
     def get_test_reconstruct_from_properties(self, questions: list[TestQuestion]) -> IliasTest:
+        title_elem = self._get_form_input_by_label_prefix("Titel*")
+        description_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
+        #intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
+        starting_time_elem = self._get_form_input_by_label_prefix("Start", ".il-section-input > .form-group > label")
+        ending_time_elem = self._get_form_input_by_label_prefix("Ende", ".il-section-input > .form-group > label")
+        number_of_tries_elem = self._get_form_input_by_label_prefix("Maximale Anzahl von Testdurchläufen")
         return IliasTest(
-            title=_norm(__(_(self._soup.find(id="title")).get("value", ""))),
-            description=_norm("".join([str(x) for x in _(self._soup.find(id="description")).contents])),
-            intro_text=_norm("".join([str(x) for x in _(self._soup.find(id="introduction")).contents])),
-            starting_time=_parse_time(_(self._soup.find(id="starting_time"))),
-            ending_time=_parse_time(_(self._soup.find(id="ending_time"))),
-            number_of_tries=int(__(_(self._soup.find(id="nr_of_tries")).get("value", "100"))),
+            title=_norm(__(title_elem.get("value", ""))),
+            description=_norm("".join([str(x) for x in _(description_elem).contents])),
+            intro_text=_norm("".join([str(x) for x in _(description_elem).contents])),
+            starting_time=_parse_time(_(starting_time_elem)),
+            ending_time=_parse_time(_(ending_time_elem)),
+            number_of_tries=int(__(_(number_of_tries_elem).get("value", "100"))),
             questions=questions,
         )
+
+    def _get_form_input_by_label_prefix(self, label_prefix: str, selector: str = "label") -> bs4.Tag:
+        candidates = []
+        for label in self._soup.select(selector):
+            text = label.get_text().strip()
+            if text.startswith(label_prefix):
+                input_id = label.get("for", None)
+                if not input_id:
+                    raise CrawlError(f"Label for {label_prefix!r} has no 'for' attribute")
+                input_element = self._soup.find(id=input_id)
+                if not input_element:
+                    raise CrawlError(f"Could not find input element with id {input_id!r} for label {label_prefix!r}")
+                candidates.append(input_element)
+
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            raise CrawlError(f"Found multiple candidates for label with prefix {label_prefix!r}")
+        raise CrawlError(f"Could not find label with prefix {label_prefix!r}")
 
     def get_test_question_design_last_component_id(self) -> str:
         editor = self._soup.find(id="ilEditorTD")
@@ -633,7 +663,7 @@ def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:
     time_str = time_input.get("value", None)
     if not time_str:
         return None
-    return datetime.datetime.strptime(cast(str, time_str), "%d.%m.%Y %H:%M")
+    return datetime.datetime.strptime(cast(str, time_str), "%Y-%m-%d %H:%M")
 
 
 def random_ilfilehash() -> str:
