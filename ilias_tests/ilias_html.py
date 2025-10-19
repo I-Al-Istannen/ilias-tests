@@ -374,30 +374,22 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError(f"Unknown question type at '{self.url()}'")
 
     def get_test_question_design_page_url(self):
-        link = self._soup.find(attrs={"href": lambda x: x is not None and "cmdclass=ilassquestionpagegui" in x.lower()})
-        if not link:
+        button = self._soup.find(
+            attrs={"data-action": lambda x: x is not None and "cmdclass=ilassquestionpagegui" in x.lower()}
+        )
+        if not button:
             raise CrawlError("Could not find page edit button")
-        return self._abs_url_from_link(link)
+        return self._abs_url_from_relative(__(button.get("data-action")))
 
     def get_test_question_design_post_url(self) -> tuple[str, str]:
         """
         Returns the post endpoint from the 'Design page' page.
         First url is the base for text and images, the second for e.g. code
         """
-        for script in self._soup.find_all(name="script"):
-            if not isinstance(script, bs4.Tag):
-                continue
-            text = "".join([str(x) for x in script.contents])
-            if "il.copg.editor.init" in text:
-                candidates = [line.strip() for line in text.splitlines() if "il.copg.editor.init" in line]
-                if not candidates:
-                    raise CrawlError("Found no init call candidate")
-                init_call = candidates[0]
-                match = re.search(r"\('([^']+)','([^']+)'", init_call)
-                if not match:
-                    raise CrawlError(f"Editor init call has unknown format: {candidates[0]!r}")
-                return match.group(1), self._abs_url_from_relative(match.group(2))
-        raise CrawlError("Could not find copg editor base url")
+        init_el = _(self._soup.find(id="il-copg-init"))
+        base_url = __(init_el.get("data-endpoint"))
+        post_url = self._abs_url_from_relative(__(init_el.get("data-formaction")))
+        return base_url, post_url
 
     async def get_test_question_design_blocks(
         self, downloader: Callable[[str], Awaitable[Path]]
@@ -718,5 +710,17 @@ def _normalize_tag_for_design_block(element: bs4.Tag):
 
     for comment in element.find_all(text=lambda text: isinstance(text, bs4.Comment)):
         comment.extract()
+
+    for emph in element.find_all("em"):
+        emph.name = "span"
+        classes = emph.get_attribute_list("class")
+        classes.remove("ilc_em_Emph")
+        classes.append("ilc_text_inline_Emph")
+
+    for strong in element.find_all("strong"):
+        strong.name = "span"
+        classes = strong.get_attribute_list("class")
+        classes.remove("ilc_strong_Strong")
+        classes.append("ilc_text_inline_Strong")
 
     return _norm(element.decode_contents())

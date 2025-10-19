@@ -503,7 +503,7 @@ class IliasInteractor:
         log.explain_topic("Adding design blocks to page")
         current_id = ""
         for block in blocks:
-            log.explain(f"Adding block {block}")
+            log.explain(f"Adding block {block.__class__.__name__}")
             match block:
                 case PageDesignBlockImage(image=image):
                     current_id = await self.design_page_add_image_block(edit_page, path=image, after_id=current_id)
