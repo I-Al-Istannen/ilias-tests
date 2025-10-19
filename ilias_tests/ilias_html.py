@@ -82,6 +82,7 @@ class ExtendedIliasPage(IliasPage):
         log.explain_topic("Verifying page is a test")
         # use classes here that are plausible for copy-pasted links
         possible_cmdclasses = (
+            "cmdclass=iltestscreengui",
             "cmdclass=ilobjtestgui",
             "cmdclass=ilparticipantstestresultsgui",
             "cmdclass=iltestscoringbyquestionsgui",
@@ -131,14 +132,11 @@ class ExtendedIliasPage(IliasPage):
         return result
 
     def get_test_settings_change_data(self) -> tuple[str, set[ExtraFormData]]:
-        form = self._soup.find(id="form_test_properties")
+        form = self._soup.select_one("form.il-standard-form")
         if not form:
             raise CrawlError("Could not find properties page. Is this a settings page?")
 
         extra_values = self._get_extra_form_values(form)
-        extra_values.add(
-            ExtraFormData(name="ilfilehash", value=__(_(form.find(id="ilfilehash"))["value"]), disabled=False)
-        )
         return self._abs_url_from_relative(__(form["action"])), extra_values
 
     def get_test_add_question_url(self):
@@ -464,7 +462,7 @@ class ExtendedIliasPage(IliasPage):
     def get_test_reconstruct_from_properties(self, questions: list[TestQuestion]) -> IliasTest:
         title_elem = self._get_form_input_by_label_prefix("Titel*")
         description_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
-        #intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
+        # intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
         starting_time_elem = self._get_form_input_by_label_prefix("Start", ".il-section-input > .form-group > label")
         ending_time_elem = self._get_form_input_by_label_prefix("Ende", ".il-section-input > .form-group > label")
         number_of_tries_elem = self._get_form_input_by_label_prefix("Maximale Anzahl von Testdurchläufen")
@@ -496,6 +494,45 @@ class ExtendedIliasPage(IliasPage):
         if len(candidates) > 1:
             raise CrawlError(f"Found multiple candidates for label with prefix {label_prefix!r}")
         raise CrawlError(f"Could not find label with prefix {label_prefix!r}")
+
+    def get_form_input_from_label_path(
+        self, label_match: str | re.Pattern, section_title: str | None = None, selector: str = "label"
+    ):
+        match_source: bs4.Tag
+        if section_title is not None:
+            for title in self._soup.select(".il-section-input-header > h2"):
+                if title.get_text().strip() == section_title:
+                    match_source = _(title.find_parent(class_="il-section-input"))
+                    break
+            else:
+                raise CrawlError(f"Could not find section with title {section_title!r}")
+        else:
+            match_source = self._soup
+
+        candidates = []
+        for label in match_source.select(selector):
+            text = label.get_text().strip()
+            if isinstance(label_match, str):
+                matches = text == label_match
+            else:
+                matches = re.match(label_match, text) is not None
+            if not matches:
+                continue
+            input_id = label.get("for", None)
+            if not input_id:
+                log.explain(f"Label {text!r} has no 'for' attribute, skipping")
+                continue
+            input_element = self._soup.find(id=input_id)
+            if not input_element:
+                log.explain(f"Could not find input element with id {input_id!r} for label {text!r}, skipping")
+                continue
+            candidates.append(input_element)
+
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            raise CrawlError(f"Found multiple candidates for label with match {label_match!r}")
+        raise CrawlError(f"Could not find label with match {label_match!r}")
 
     def get_test_question_design_last_component_id(self) -> str:
         editor = self._soup.find(id="ilEditorTD")

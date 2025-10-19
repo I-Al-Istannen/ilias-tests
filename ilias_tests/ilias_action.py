@@ -3,6 +3,7 @@ import datetime
 import http.cookies
 import json
 import mimetypes
+import re
 import ssl
 from collections.abc import Callable
 from pathlib import Path, PurePath
@@ -137,6 +138,169 @@ class IliasInteractor:
         log.explain_topic("Selecting ilias page")
         return await self._get_extended_page(url)
 
+    def _translate_from_ilias(
+        self,
+        settings_page: ExtendedIliasPage,
+        label_match: str | re.Pattern,
+        section_title: str | None = None,
+        selector: str = "label",
+    ) -> str:
+        return settings_page.get_form_input_from_label_path(
+            label_match, section_title=section_title, selector=selector
+        ).get("name")
+
+    def _translate(self, settings_page: ExtendedIliasPage, human_name: str):
+        if human_name == "title":
+            return self._translate_from_ilias(settings_page, "Titel*", section_title="Einstellungen des Tests")
+        elif human_name == "description":
+            return self._translate_from_ilias(settings_page, "Zusammenfassung", section_title="Einstellungen des Tests")
+        elif human_name == "question_set_type":
+            return self._translate_from_ilias(
+                settings_page,
+                "Fest definierte Fragenauswahl",
+                section_title="Einstellungen des Tests",
+            )
+        elif human_name == "anonymity":
+            return self._translate_from_ilias(
+                settings_page,
+                "Testergebnisse mit Namen",
+                section_title="Einstellungen des Tests",
+            )
+        elif human_name == "online":
+            return self._translate_from_ilias(
+                settings_page,
+                "Online",
+                section_title="Verfügbarkeit",
+            )
+        elif human_name == "activation_type":
+            return self._translate_from_ilias(
+                settings_page,
+                "Zeitlich begrenzte Verfügbarkeit",
+                section_title="Verfügbarkeit",
+            )
+        elif human_name == "access_period[start]":
+            return self._translate_from_ilias(
+                settings_page,
+                "Start",
+                section_title="Verfügbarkeit",
+            )
+        elif human_name == "access_period[end]":
+            return self._translate_from_ilias(
+                settings_page,
+                "Ende",
+                section_title="Verfügbarkeit",
+            )
+        elif human_name == "activation_visibility":
+            return self._translate_from_ilias(
+                settings_page,
+                "Immer sichtbar",
+                section_title="Verfügbarkeit",
+            )
+        elif human_name == "intro_enabled":
+            return self._translate_from_ilias(
+                settings_page,
+                "Einleitung",
+                section_title="Informationen zum Einstieg",
+            )
+        elif human_name == "starting_time":
+            return self._translate_from_ilias(
+                settings_page,
+                "Start",
+                section_title="Durchführung: Zugang",
+            )
+        elif human_name == "ending_time":
+            return self._translate_from_ilias(
+                settings_page,
+                "Ende",
+                section_title="Durchführung: Zugang",
+            )
+        elif human_name == "limitPasses":
+            return self._translate_from_ilias(
+                settings_page,
+                "Anzahl von Testdurchläufen begrenzen",
+                section_title="Durchführung: Steuerung Testdurchlauf",
+            )
+        elif human_name == "nr_of_tries":
+            return self._translate_from_ilias(
+                settings_page,
+                "Maximale Anzahl von Testdurchläufen*",
+                section_title="Durchführung: Steuerung Testdurchlauf",
+            )
+        elif human_name == "title_output":
+            return self._translate_from_ilias(
+                settings_page,
+                "Fragentitel und erreichbare Punkte",
+                section_title="Durchführung: Verhalten der Frage",
+            )
+        elif human_name == "answer_fixation_handling":
+            return self._translate_from_ilias(
+                settings_page,
+                "Antworten während des Testdurchlaufs nicht festschreiben",
+                section_title="Durchführung: Verhalten der Frage",
+            )
+        elif human_name == "chb_use_previous_answers":
+            return self._translate_from_ilias(
+                settings_page,
+                "Verwendung vorheriger Lösungen",
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "postpone":
+            return self._translate_from_ilias(
+                settings_page,
+                "Nicht beantwortete Fragen bleiben an ihrem Platz",
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "list_of_questions":
+            return self._translate_from_ilias(
+                settings_page,
+                "Übersicht Testdurchlauf",
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "list_of_questions_show_at_end":
+            return self._translate_from_ilias(
+                settings_page,
+                "Vor dem Ende des Test anzeigen",
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "list_of_questions_show_descriptions":
+            return self._translate_from_ilias(
+                settings_page,
+                "Fragenbeschreibungen anzeigen",
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "allow_interrupt":
+            return self._translate_from_ilias(
+                settings_page,
+                '"Test unterbrechen" anzeigen',
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "question_list":
+            return self._translate_from_ilias(
+                settings_page,
+                "Fragenliste",
+                section_title="Durchführung: Funktionen für Teilnehmer",
+            )
+        elif human_name == "enable_examview":
+            return self._translate_from_ilias(
+                settings_page,
+                "Übersicht gegebener Antworten",
+                section_title="Test abschließen",
+            )
+        elif human_name == "autosave":
+            return self._translate_from_ilias(
+                settings_page,
+                "Automatisches Speichern",
+                section_title="Durchführung: Verhalten der Frage",
+            )
+        elif human_name == "autosave_ival":
+            return self._translate_from_ilias(
+                settings_page,
+                "Speicherintervall*",
+                section_title="Durchführung: Verhalten der Frage",
+            )
+        else:
+            raise CrawlError(f"Unknown human name {human_name!r} for translation")
+
     async def configure_test(
         self,
         settings_page: ExtendedIliasPage,
@@ -151,28 +315,26 @@ class IliasInteractor:
         """Configures the base test properties."""
         log.explain_topic(f"Configuring test {title}")
         base_params = {
-            "cmd[saveForm]": "Speichern",
             "title": title,
             "description": description,
-            "use_pool": "0",  # use questions from pool
             "question_set_type": "FIXED_QUEST_SET",  # everybody gets the same questions
             "anonymity": "0",
         }
         activation_params = {
-            "online": "1" if online else "0",
-            # "activation_type": "1",  # time limited
-            # "access_period[start]": _format_time(datetime.datetime.now()),  # start of it
-            # "access_period[end]": _format_time(datetime.datetime.now()),  # end of it
-            # "activation_visibility": "1"  # always visible, but not take-able
+            "online": "checked" if online else None,
+            "activation_type": "checked",  # time limited
+            "access_period[start]": _format_time(datetime.datetime.now()),  # start of it
+            "access_period[end]": _format_time(datetime.datetime.now()),  # end of it
+            "activation_visibility": "checked"  # always visible, but not take-able
         }
+        # FIXME: This is now cursed enough that it doesn't work anymore *and* is annoying
         intro_params = {
-            "showinfo": "1",  # show users the info tab
-            "intro_enabled": "1" if intro_text else "0",  # show text before the test
-            "introduction": intro_text,  # the text. Must not be empty
+            # "intro_enabled": "1" if intro_text else "0",  # show text before the test
+            # "introduction": intro_text,  # the text. Must not be empty
         }
         access_params = {"starting_time": _format_time(starting_time), "ending_time": _format_time(ending_time)}
         run_test_params = {
-            "limitPasses": "1",
+            "limitPasses": "checked",
             "nr_of_tries": str(number_of_tries),
         }
         run_question_params = {
@@ -180,17 +342,20 @@ class IliasInteractor:
             "answer_fixation_handling": "none",  # allow changing answers
         }
         run_user_params = {
-            "chb_use_previous_answers": "1",  # show answers from previous run
+            "chb_use_previous_answers": "checked",  # show answers from previous run
             "postpone": "0",  # do not move unanswered questions to the end
-            "list_of_questions": "1",  # show a list of questions in a sidebar
-            "list_of_questions_options[]": ["chb_list_of_questions_end", "chb_list_of_questions_with_description"],
+            "list_of_questions": "checked",  # show a list of questions in a sidebar
+            "list_of_questions_show_at_end": "checked",
+            "list_of_questions_show_descriptions": "checked",
+            "allow_interrupt": "checked",
+            "question_list": "checked",
         }
         test_finish_params = {
-            "enable_examview": "1",  # Show answers before test submission
+            "enable_examview": "checked",  # Show answers before test submission
         }
         other_params = {
+            "autosave": "checked",
             "autosave_ival": "30",
-            "instant_feedback_trigger": "0",
         }
 
         data = {
@@ -204,6 +369,9 @@ class IliasInteractor:
             **test_finish_params,
             **other_params,
         }
+
+        data = {self._translate(settings_page, k): v for k, v in data.items() if v is not None}
+
         url, extra_data = settings_page.get_test_settings_change_data()
 
         post_data = data.copy()
@@ -706,10 +874,10 @@ class IliasInteractor:
 
 
 def _auth_redirected_to_test_page(response: aiohttp.ClientResponse):
-    return "cmdclass=ilobjtestsettingsgeneralgui" in response.url.query_string.lower()
+    return "cmdclass=ilobjtestsettingsmaingui" in response.url.query_string.lower()
 
 
 def _format_time(time: Optional[datetime.datetime]) -> str:
     if not time:
         return ""
-    return time.strftime("%d.%m.%Y %H:%M")
+    return time.strftime("%Y-%m-%dT%H:%M")
