@@ -1,6 +1,5 @@
 from pathlib import Path, PurePath
-from typing import Awaitable, Callable, Optional, Any
-from dataclasses import asdict
+from typing import Awaitable, Callable, Optional
 
 from PFERD.crawl.ilias.kit_ilias_html import IliasElementType
 from PFERD.logging import log

@@ -688,8 +688,7 @@ class IliasInteractor:
                 # if it failed and aborts the crawl process.
                 if caller_auth_id != self._authentication_id:
                     log.explain(
-                        "Authentication skipped due to auth id mismatch."
-                        "A previous authentication beat us to the race."
+                        "Authentication skipped due to auth id mismatch.A previous authentication beat us to the race."
                     )
                     return
                 log.explain("Calling crawler-specific authenticate")
