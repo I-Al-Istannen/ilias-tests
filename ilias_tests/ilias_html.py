@@ -4,13 +4,12 @@ import re
 import string
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, cast, Callable, Awaitable
+from typing import Optional, TypeVar, cast, Callable, Awaitable
 
 import bs4
 from PFERD.crawl import CrawlError
-from PFERD.crawl.ilias.kit_ilias_html import IliasPage
+from PFERD.crawl.ilias.kit_ilias_html import IliasPage, IliasSoup
 from PFERD.logging import log
-from bs4 import BeautifulSoup
 
 from .spec import (
     QuestionUploadFile,
@@ -31,6 +30,30 @@ from .spec import (
     ProgrammingQuestionAnswer,
 )
 
+T = TypeVar("T")
+
+
+def _(value: Optional[T]) -> T:
+    """
+    Unwrap an optional value, crashing if it's None.
+    Named `_` for minimal verbosity: `_(soup.find(...))`.
+    Use for BeautifulSoup optionals where we don't care about handling None.
+    """
+    assert value is not None
+    return value
+
+
+def __(value: None | str | bs4.element.AttributeValueList) -> str:
+    """
+    Unwrap an attribute value list to a string.
+    Named `__` for minimal verbosity: `__(tag["class"])`.
+    Use for BeautifulSoup attribute values where we don't care about handling lists.
+    """
+    assert value is not None
+    if isinstance(value, list):
+        return " ".join(value)
+    return value
+
 
 @dataclass
 class ExtraFormData:
@@ -46,8 +69,8 @@ class ExtraFormData:
 
 
 class ExtendedIliasPage(IliasPage):
-    def __init__(self, soup: BeautifulSoup, _page_url: str):
-        super().__init__(soup, _page_url, None)
+    def __init__(self, soup: IliasSoup):
+        super().__init__(soup, None)
 
     def url(self):
         return self._page_url
@@ -71,7 +94,7 @@ class ExtendedIliasPage(IliasPage):
         if not header:
             log.explain("Could not find headerimage")
             return False
-        if header.get("alt", "").lower() == "symbol test":
+        if __(header.get("alt", "")).lower() == "symbol test":
             log.explain("Alt text in header matched")
             return True
         log.explain("Alt text did not match")
@@ -84,14 +107,14 @@ class ExtendedIliasPage(IliasPage):
         return "cmd=editquestion" in self.normalized_url()
 
     def get_test_create_url(self) -> Optional[str]:
-        return self._abs_url_from_link(self._soup.find(id="tst"))
+        return self._abs_url_from_link(_(self._soup.find(id="tst")))
 
     def get_test_create_submit_url(self) -> tuple[str, str]:
         if not self.is_test_create_page():
             raise CrawlError("Not on test create page")
-        save_button = self._soup.find(attrs={"name": "cmd[save]"})
-        form = save_button.find_parent(name="form")
-        return self._abs_url_from_relative(form["action"]), save_button["value"]
+        save_button = _(self._soup.find(attrs={"name": "cmd[save]"}))
+        form = _(save_button.find_parent(name="form"))
+        return self._abs_url_from_relative(__(form["action"])), __(save_button["value"])
 
     def get_test_tabs(self) -> dict[str, str]:
         tab = self._soup.find(id="ilTab")
@@ -99,10 +122,10 @@ class ExtendedIliasPage(IliasPage):
             return {}
 
         result = {}
-        for tab_list in tab.find_all(name="li"):
-            if not tab_list["id"].startswith("tab_"):
+        for tab_list in _(tab.find_all(name="li")):
+            if not __(tab_list["id"]).startswith("tab_"):
                 continue
-            link = tab_list.find(name="a")
+            link = _(tab_list.find(name="a"))
             result[link.getText().strip()] = self._abs_url_from_link(link)
 
         return result
@@ -113,17 +136,20 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError("Could not find properties page. Is this a settings page?")
 
         extra_values = self._get_extra_form_values(form)
-        extra_values.add(ExtraFormData(name="ilfilehash", value=form.find(id="ilfilehash")["value"], disabled=False))
-        return self._abs_url_from_relative(form["action"]), extra_values
+        extra_values.add(
+            ExtraFormData(name="ilfilehash", value=__(_(form.find(id="ilfilehash"))["value"]), disabled=False)
+        )
+        return self._abs_url_from_relative(__(form["action"])), extra_values
 
     def get_test_add_question_url(self):
         """Add a question to a test."""
-        button = self._soup.find(attrs={"onclick": lambda x: x and "cmd=addQuestion" in x})
+        button = self._soup.find(attrs={"onclick": lambda x: x is not None and "cmd=addQuestion" in x})
         if not button:
             raise CrawlError("Could not find add question button")
-        start = button["onclick"].find("'")
-        end = button["onclick"].rfind("'")
-        return self._abs_url_from_relative(button["onclick"][start + 1 : end])
+        on_click = __(button["onclick"])
+        start = on_click.find("'")
+        end = on_click.rfind("'")
+        return self._abs_url_from_relative(on_click[start + 1 : end])
 
     def get_test_question_create_url(self) -> str:
         """Enter question editor by selecting its type and information."""
@@ -134,7 +160,7 @@ class ExtendedIliasPage(IliasPage):
         url, btn, form = self._form_target_from_button("cmd[saveReturn]")
         form_values = self._get_extra_form_values(form)
         if filehash := self._soup.find(id="ilfilehash"):
-            form_values.add(ExtraFormData(name="ilfilehash", value=filehash.get("value"), disabled=False))
+            form_values.add(ExtraFormData(name="ilfilehash", value=__(filehash.get("value")), disabled=False))
         return url, form_values
 
     def get_test_question_design_code_submit_url(self):
@@ -147,34 +173,34 @@ class ExtendedIliasPage(IliasPage):
         for inpt in form.find_all(name="input", attrs={"required": "required"}):
             extra_values.add(
                 ExtraFormData(
-                    name=inpt["name"],
-                    value=inpt.get("value", ""),
+                    name=__(inpt["name"]),
+                    value=__(inpt.get("value", "")),
                     disabled=inpt.get("disabled", None) is not None,
                 )
             )
         for inpt in form.find_all(name="textarea", attrs={"required": "required"}):
             extra_values.add(
                 ExtraFormData(
-                    name=inpt["name"],
-                    value=inpt.get("value", ""),
+                    name=__(inpt["name"]),
+                    value=__(inpt.get("value", "")),
                     disabled=inpt.get("disabled", None) is not None,
                 )
             )
         for select in form.find_all(name="select"):
             extra_values.add(
                 ExtraFormData(
-                    name=select["name"],
-                    value=select.find(name="option", attrs={"selected": "selected"}).get("value", ""),
+                    name=__(select["name"]),
+                    value=__(_(select.find(name="option", attrs={"selected": "selected"})).get("value", "")),
                     disabled=select.get("disabled", None) is not None,
                 )
             )
 
         for inpt in form.find_all(name="input", attrs={"disabled": "disabled"}):
-            extra_values.add(ExtraFormData(name=inpt["name"], value="", disabled=True))
+            extra_values.add(ExtraFormData(name=__(inpt["name"]), value="", disabled=True))
         for select in form.find_all(name="select", attrs={"disabled": "disabled"}):
-            extra_values.add(ExtraFormData(name=select["name"], value="", disabled=True))
+            extra_values.add(ExtraFormData(name=__(select["name"]), value="", disabled=True))
         for select in form.find_all(name="textarea", attrs={"disabled": "disabled"}):
-            extra_values.add(ExtraFormData(name=select["name"], value="", disabled=True))
+            extra_values.add(ExtraFormData(name=__(select["name"]), value="", disabled=True))
 
         return extra_values
 
@@ -182,8 +208,8 @@ class ExtendedIliasPage(IliasPage):
         btn = self._soup.find(attrs={"name": button_name})
         if not btn:
             raise CrawlError(f"Could not find {button_name!r} button")
-        form = btn.find_parent(name="form")
-        return self._abs_url_from_relative(form["action"]), btn, form
+        form = _(btn.find_parent(name="form"))
+        return self._abs_url_from_relative(__(form["action"])), btn, form
 
     def get_test_question_after_values(self) -> dict[str, str]:
         position_select = self._soup.find(id="position")
@@ -209,12 +235,12 @@ class ExtendedIliasPage(IliasPage):
         """Returns [(id, link tag for title)]"""
         if "cmd=questions" not in self.normalized_url() or "ilobjtestgui" not in self.normalized_url():
             raise CrawlError("Not on test question page")
-        table = self._soup.find(name="table", id=lambda x: x and x.startswith("tst_qst_lst"))
+        table = self._soup.find(name="table", id=lambda x: x is not None and x.startswith("tst_qst_lst"))
         if not table:
             raise CrawlError("Did not find questions table")
         result = []
-        for row in table.find(name="tbody").find_all(name="tr"):
-            order_td = row.find(name="td", attrs={"name": lambda x: x and x.startswith("order[")})
+        for row in _(table.find(name="tbody")).find_all(name="tr"):
+            order_td = row.find(name="td", attrs={"name": lambda x: x is not None and x.startswith("order[")})
             if not order_td:
                 alert_message = ""
                 for alert in self._soup.select(".alert"):
@@ -243,20 +269,22 @@ class ExtendedIliasPage(IliasPage):
 
     def get_test_question_edit_url(self):
         return self._abs_url_from_link(
-            self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=editQuestion" in x})
+            _(self._soup.find(name="a", attrs={"href": lambda x: x is not None and "cmd=editQuestion" in x}))
         )
 
     def get_test_question_reconstruct_from_edit(self, page_design: list[PageDesignBlock]):
         if "cmd=editquestion" not in self.normalized_url():
             raise CrawlError("Not on question edit page")
-        title = _norm(self._soup.find(id="title")["value"].strip())
-        author = _norm(self._soup.find(id="author")["value"].strip())
-        summary = _norm(self._soup.find(id="comment").get("value", "").strip())
-        question_html = _norm(self._soup.find(id="question").getText().strip())
+        title = _norm(__(_(self._soup.find(id="title"))["value"]).strip())
+        author = _norm(__(_(self._soup.find(id="author"))["value"]).strip())
+        comment = self._soup.find(id="comment")
+        summary = _norm(__(comment.get("value", "") if comment else "").strip())
+        question = self._soup.find(id="question")
+        question_html = _norm(question.getText().strip() if question else "")
 
         if "asstextquestiongui" in self.normalized_url():
             # free from text
-            points = float(self._soup.find(id="non_keyword_points")["value"].strip())
+            points = float(__(_(self._soup.find(id="non_keyword_points"))["value"]).strip())
             return QuestionFreeFormText(
                 title=title,
                 author=author,
@@ -267,9 +295,9 @@ class ExtendedIliasPage(IliasPage):
             )
         elif "cmdclass=assfileuploadgui" in self.normalized_url():
             # file upload
-            max_size_bytes = int(self._soup.find(id="maxsize").get("value", "2097152").strip())
-            allowed_extensions = self._soup.find(id="allowedextensions").get("value", "").strip().split(",")
-            points = float(self._soup.find(id="points")["value"].strip())
+            max_size_bytes = int(__(_(self._soup.find(id="maxsize")).get("value", "2097152")).strip())
+            allowed_extensions = __(_(self._soup.find(id="allowedextensions")).get("value", "")).strip().split(",")
+            points = float(__(_(self._soup.find(id="points"))["value"]).strip())
             return QuestionUploadFile(
                 title=title,
                 author=author,
@@ -281,13 +309,17 @@ class ExtendedIliasPage(IliasPage):
                 max_size_bytes=max_size_bytes,
             )
         elif "cmdclass=asssinglechoicegui" in self.normalized_url():
-            shuffle = True if self._soup.find(id="shuffle").get("checked", None) else False
-            answer_table = self._soup.find(name="table", attrs={"class": lambda x: x and "singlechoicewizard" in x})
+            shuffle = True if _(self._soup.find(id="shuffle")).get("checked", None) else False
+            answer_table = _(
+                self._soup.find(name="table", attrs={"class": lambda x: x is not None and "singlechoicewizard" in x})
+            )
             answers = []
-            for inpt in answer_table.find_all(name="input", id=lambda x: x and x.startswith("choice[answer]")):
-                answer_value = _norm(inpt.get("value", ""))
+            for inpt in answer_table.find_all(
+                name="input", id=lambda x: x is not None and x.startswith("choice[answer]")
+            ):
+                answer_value = _norm(__(inpt.get("value", "")))
                 answer_points = float(
-                    answer_table.find(id=inpt["id"].replace("answer", "points")).get("value", "0").strip()
+                    __(_(answer_table.find(id=__(inpt["id"]).replace("answer", "points"))).get("value", "0")).strip()
                 )
                 answers.append((answer_value, answer_points))
 
@@ -301,19 +333,25 @@ class ExtendedIliasPage(IliasPage):
                 answers=answers,
             )
         elif "cmdclass=assmultiplechoicegui" in self.normalized_url():
-            shuffle = True if self._soup.find(id="shuffle").get("checked", None) else False
-            selection_limit = self._soup.find(id="selection_limit").get("value", None)
+            shuffle = True if _(self._soup.find(id="shuffle")).get("checked", None) else False
+            selection_limit = _(self._soup.find(id="selection_limit")).get("value", None)
             if selection_limit is not None:
-                selection_limit = int(selection_limit)
-            answer_table = self._soup.find(name="table", attrs={"class": lambda x: x and "multiplechoicewizard" in x})
+                selection_limit = int(__(selection_limit))
+            answer_table = _(
+                self._soup.find(name="table", attrs={"class": lambda x: x is not None and "multiplechoicewizard" in x})
+            )
             answers = []
-            for inpt in answer_table.find_all(name="input", id=lambda x: x and x.startswith("choice[answer]")):
-                answer_value = _norm(inpt.get("value", ""))
+            for inpt in answer_table.find_all(
+                name="input", id=lambda x: x is not None and x.startswith("choice[answer]")
+            ):
+                answer_value = _norm(__(inpt.get("value", "")))
                 answer_points_checked = float(
-                    answer_table.find(id=inpt["id"].replace("answer", "points")).get("value", "0").strip()
+                    __(_(answer_table.find(id=__(inpt["id"]).replace("answer", "points"))).get("value", "0")).strip()
                 )
                 answer_points_unchecked = float(
-                    answer_table.find(id=inpt["id"].replace("answer", "points_unchecked")).get("value", "0").strip()
+                    __(
+                        _(answer_table.find(id=__(inpt["id"]).replace("answer", "points_unchecked"))).get("value", "0")
+                    ).strip()
                 )
                 answers.append(
                     QuestionMultipleChoice.Answer(answer_value, answer_points_checked, answer_points_unchecked)
@@ -333,7 +371,7 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError(f"Unknown question type at '{self.url()}'")
 
     def get_test_question_design_page_url(self):
-        link = self._soup.find(attrs={"href": lambda x: x and "cmdclass=ilassquestionpagegui" in x.lower()})
+        link = self._soup.find(attrs={"href": lambda x: x is not None and "cmdclass=ilassquestionpagegui" in x.lower()})
         if not link:
             raise CrawlError("Could not find page edit button")
         return self._abs_url_from_link(link)
@@ -371,25 +409,28 @@ class ExtendedIliasPage(IliasPage):
         for child in form.children:
             if not isinstance(child, bs4.Tag):
                 continue
-            if "ilc_page_title_PageTitle" in child.get("class", []):
+            child_classes = cast(list[str], child.get("class", []))  # type: ignore
+
+            if "ilc_page_title_PageTitle" in cast(list[str], child_classes):
                 after_start = True
                 continue
             if not after_start:
                 continue
-            child_classes = child.get("class", [])
             if "ilc_Paragraph" in child_classes:
                 log.explain("Found text block")
                 blocks.append(PageDesignBlockText(_normalize_tag_for_design_block(child)))
                 continue
             if "ilc_Code" in child_classes:
                 log.explain("Found code block")
-                code = child.select_one("table .ilc_Sourcecode .ilc_code_block_Code")
+                code = _(child.select_one("table .ilc_Sourcecode .ilc_code_block_Code"))
                 for br in code.find_all(name="br"):
                     br.replace_with("\n")
-                download_link = child.find(name="a", attrs={"href": lambda x: x and "cmd=download_paragraph" in x})
+                download_link = child.find(
+                    name="a", attrs={"href": lambda x: x is not None and "cmd=download_paragraph" in x}
+                )
                 name = "unknown.c"
                 if download_link:
-                    if match := re.search(r"downloadtitle=([^&]+)", download_link["href"]):
+                    if match := re.search(r"downloadtitle=([^&]+)", __(download_link["href"])):
                         name = match.group(1)
 
                 blocks.append(
@@ -405,7 +446,7 @@ class ExtendedIliasPage(IliasPage):
                 img = media_container.find(name="img")
                 if not img:
                     img = media_container.find(name="embed")
-                path = await downloader(img["src"])
+                path = await downloader(__(_(img)["src"]))
                 blocks.append(PageDesignBlockImage(image_path=path))
                 continue
             if "ilc_question_" in str(child_classes):
@@ -417,12 +458,12 @@ class ExtendedIliasPage(IliasPage):
 
     def get_test_reconstruct_from_properties(self, questions: list[TestQuestion]) -> IliasTest:
         return IliasTest(
-            title=_norm(self._soup.find(id="title").get("value", "")),
-            description=_norm("".join([str(x) for x in self._soup.find(id="description").contents])),
-            intro_text=_norm("".join([str(x) for x in self._soup.find(id="introduction").contents])),
-            starting_time=_parse_time(self._soup.find(id="starting_time")),
-            ending_time=_parse_time(self._soup.find(id="ending_time")),
-            number_of_tries=int(self._soup.find(id="nr_of_tries").get("value", "100")),
+            title=_norm(__(_(self._soup.find(id="title")).get("value", ""))),
+            description=_norm("".join([str(x) for x in _(self._soup.find(id="description")).contents])),
+            intro_text=_norm("".join([str(x) for x in _(self._soup.find(id="introduction")).contents])),
+            starting_time=_parse_time(_(self._soup.find(id="starting_time"))),
+            ending_time=_parse_time(_(self._soup.find(id="ending_time"))),
+            number_of_tries=int(__(_(self._soup.find(id="nr_of_tries")).get("value", "100"))),
             questions=questions,
         )
 
@@ -430,17 +471,17 @@ class ExtendedIliasPage(IliasPage):
         editor = self._soup.find(id="ilEditorTD")
         if not editor:
             raise CrawlError("Could not find editor")
-        candidates: list[bs4.Tag] = list(editor.find_all(name="div", id=lambda x: x and x.startswith("pc")))
+        candidates: list[bs4.Tag] = list(editor.find_all(name="div", id=lambda x: x is not None and x.startswith("pc")))
         # question is always last, so return the one before it :)
         if len(candidates) >= 2:
             last = candidates[-2]
-            return last["id"].removeprefix("pc")
+            return __(last["id"]).removeprefix("pc")
         return ""
 
     def get_scoring_settings_url(self):
         link = self._soup.find(
             name="a",
-            attrs={"href": lambda x: x and "ilobjtestsettingsscoringresultsgui" in x.lower()},
+            attrs={"href": lambda x: x is not None and "ilobjtestsettingsscoringresultsgui" in x.lower()},
         )
         if not link:
             raise CrawlError("Could not find scoring settings url on test page")
@@ -452,13 +493,13 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError("Could not find scoring form. Is this a settings (scoring) page?")
 
         extra_values = self._get_extra_form_values(form)
-        return self._abs_url_from_relative(form["action"]), extra_values
+        return self._abs_url_from_relative(__(form["action"])), extra_values
 
     def get_test_scoring_name_for_label(self, label_regex: str) -> list[str]:
         results = []
         for inp in self._soup.find_all(name="input"):
             input_id = inp.get("id", "")
-            label = self._soup.find("label", attrs={"for": input_id})
+            label = self._soup.find("label", attrs={"for": input_id})  # type: ignore
             if not label or not input_id:
                 continue
             if re.match(label_regex, label.getText().strip(), re.IGNORECASE):
@@ -472,18 +513,20 @@ class ExtendedIliasPage(IliasPage):
         return names
 
     def get_manual_grading_per_participant_url(self):
-        link = self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=showManScoringParticipantsTable" in x})
+        link = self._soup.find(
+            name="a", attrs={"href": lambda x: x is not None and "cmd=showManScoringParticipantsTable" in x}
+        )
         if link is not None:
             return self._abs_url_from_link(link)
         return None
 
     def get_manual_grading_filter_url(self):
-        link = self._soup.find(id="manScorePartTable").get("action")
-        return self._abs_url_from_relative(link)
+        link = _(self._soup.find(id="manScorePartTable")).get("action")
+        return self._abs_url_from_relative(__(link))
 
     def get_manual_grading_participant_infos(self) -> list[ManualGradingParticipantInfo]:
         participants = []
-        table = self._soup.find(name="table", id="manScorePartTable")
+        table = _(self._soup.find(name="table", id="manScorePartTable"))
         rows = list(table.select("tbody > tr"))
 
         # No participant results, only a single row with a single td containing the text "no results"
@@ -497,7 +540,7 @@ class ExtendedIliasPage(IliasPage):
             first_name = cols[1].getText().strip()
             email = cols[2].getText().strip()
             username = email.split("@")[0]
-            detail_link = self._abs_url_from_link(cols[3].select_one("a"))
+            detail_link = self._abs_url_from_link(_(cols[3].select_one("a")))
             participants.append(ManualGradingParticipantInfo(last_name, first_name, email, username, detail_link))
         return participants
 
@@ -505,15 +548,15 @@ class ExtendedIliasPage(IliasPage):
         self, participant: ManualGradingParticipantInfo
     ) -> ManualGradingParticipantResults:
         questions: list[ManualGradingGradedQuestion] = []
-        for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):
+        for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):  # type: ignore
             match = re.compile(r"\[ID: (\d+)]").search(question.getText())
-            question_id = match.group(1)
+            question_id = match.group(1)  # type: ignore
             answer_type, answer_value = self._get_manual_grading_participant_answer(
-                question.find_next(id="il_prop_cont_")
-            )
-            points = self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input").get("value", "0")
-            max_points = self._soup.select_one(f"#question__{question_id}__maxpoints").getText().strip()
-            feedback_element = self._soup.select_one(f"[name=question__{question_id}__feedback]")
+                _(question.find_next(id="il_prop_cont_"))
+            )  # type: ignore
+            points = _(self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input")).get("value", "0")
+            max_points = _(self._soup.select_one(f"#question__{question_id}__maxpoints")).getText().strip()
+            feedback_element = _(self._soup.select_one(f"[name=question__{question_id}__feedback]"))
 
             match feedback_element.name:
                 # The feedback hasn't been finalized yet => It is represented as a text area
@@ -534,8 +577,8 @@ class ExtendedIliasPage(IliasPage):
                 ManualGradingGradedQuestion(
                     ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
                     answer_value,
-                    float(points),
-                    feedback,
+                    float(__(points)),
+                    __(feedback),
                     is_final_feedback,
                 )
             )
@@ -550,7 +593,7 @@ class ExtendedIliasPage(IliasPage):
             if text_answer:
                 return "freeform_text", text_answer.decode_contents()
         elif file_answer := user_answer.select_one(".ilc_question_FileUpload"):
-            downloadables = [(file.getText().strip(), file["href"]) for file in file_answer.select('[download=""]')]
+            downloadables = [(file.getText().strip(), __(file["href"])) for file in file_answer.select('[download=""]')]
             return "file_upload", [ProgrammingQuestionAnswer(name, uri) for name, uri in downloadables]
         return None
 
@@ -562,7 +605,7 @@ class ExtendedIliasPage(IliasPage):
         if ExtendedIliasPage.page_has_failure_alert(page):
             return False
         for alert in page._soup.find_all(attrs={"role": ["status", "alert"]}):
-            if "alert-success" in alert.get("class", ""):
+            if "alert-success" in __(alert.get("class", "")):
                 return True
         return False
 
@@ -570,14 +613,14 @@ class ExtendedIliasPage(IliasPage):
     def page_has_failure_alert(page: "ExtendedIliasPage") -> bool:
         has_danger_alert = False
         for alert in page._soup.find_all(attrs={"role": ["alert", "status"]}):
-            if "alert-danger" in alert.get("class", ""):
+            if "alert-danger" in __(alert.get("class", "")):
                 log.warn("Got danger alert")
                 log.warn_contd("  " + alert.getText().strip())
                 has_danger_alert = True
         return has_danger_alert
 
     def get_test_dashboard_end_all_passes_url(self) -> Optional[str]:
-        link = self._soup.find(name="a", attrs={"href": lambda x: x and "cmd=finishAllUserPasses" in x})
+        link = self._soup.find(name="a", attrs={"href": lambda x: x is not None and "cmd=finishAllUserPasses" in x})
         if not link:
             return None
         return self._abs_url_from_link(link)
@@ -590,7 +633,7 @@ def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:
     time_str = time_input.get("value", None)
     if not time_str:
         return None
-    return datetime.datetime.strptime(time_str, "%d.%m.%Y %H:%M")
+    return datetime.datetime.strptime(cast(str, time_str), "%d.%m.%Y %H:%M")
 
 
 def random_ilfilehash() -> str:
@@ -606,7 +649,7 @@ def _normalize_tag_for_design_block(element: bs4.Tag):
     for elem in element.find_all(name="code"):
         del elem["class"]
 
-    for comment in element.findAll(text=lambda text: isinstance(text, bs4.Comment)):
+    for comment in element.find_all(text=lambda text: isinstance(text, bs4.Comment)):
         comment.extract()
 
     return _norm(element.decode_contents())

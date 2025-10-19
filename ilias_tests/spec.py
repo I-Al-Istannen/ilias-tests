@@ -1,17 +1,17 @@
 import abc
 import datetime
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any, Union, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import markdown2
 import yaml
+from markdownify import markdownify
 from PFERD.crawl import CrawlError
 from PFERD.logging import log
 from PFERD.utils import soupify
-from markdownify import markdownify
 from slugify import slugify
 
 if TYPE_CHECKING:
@@ -110,7 +110,7 @@ def load_multiple_choice_question(
     answers: list[QuestionMultipleChoice.Answer] = []
     for elem in yml["answers"]:
         answers.append(QuestionMultipleChoice.Answer(elem["answer"], elem["points"], elem["points_unchecked"]))
-    selection_limit = yml.get("selection_limit", None)
+    selection_limit = yml.get("selection_limit")
 
     return QuestionMultipleChoice(
         title=title,
@@ -197,7 +197,7 @@ class TestQuestion(abc.ABC):
         self.question_type = question_type
         self.page_design = page_design
 
-    def get_options(self) -> dict[str, Union[str, Path]]:
+    def get_options(self) -> dict[str, str | Path]:
         return {
             "title": self.title,
             "author": self.author,
@@ -225,13 +225,13 @@ class TestQuestion(abc.ABC):
         page_design = [PageDesignBlock.deserialize(x) for x in yml["page_design"]]
 
         if str_type == "file_upload":
-            return load_upload_file_question(title, author, summary, question_html, page_design, yml)
+            return load_upload_file_question(title, author, summary, question_html, page_design, yml)  # type: ignore
         elif str_type == "freeform_text":
-            return load_freeform_question(title, author, summary, question_html, page_design, yml)
+            return load_freeform_question(title, author, summary, question_html, page_design, yml)  # type: ignore
         elif str_type == "single_choice":
-            return load_single_choice_question(title, author, summary, question_html, page_design, yml)
+            return load_single_choice_question(title, author, summary, question_html, page_design, yml)  # type: ignore
         elif str_type == "multiple_choice":
-            return load_multiple_choice_question(title, author, summary, question_html, page_design, yml)
+            return load_multiple_choice_question(title, author, summary, question_html, page_design, yml)  # type: ignore
         else:
             raise CrawlError(f"Unknown question type {str_type}")
 
@@ -249,7 +249,7 @@ class QuestionFreeFormText(TestQuestion):
         super().__init__(title, author, summary, question_html, QuestionType.FREE_FORM_TEXT, page_design)
         self.points = points
 
-    def get_options(self) -> dict[str, Union[str, Path]]:
+    def get_options(self) -> dict[str, str | Path]:
         return {
             **super().get_options(),
             "scoring_mode": "non",  # manual
@@ -279,7 +279,7 @@ class QuestionUploadFile(TestQuestion):
         self.allowed_extensions = allowed_extensions
         self.max_size_bytes = max_size_bytes
 
-    def get_options(self) -> dict[str, Union[str, Path]]:
+    def get_options(self) -> dict[str, str | Path]:
         return {
             **super().get_options(),
             "allowedextensions": ",".join(self.allowed_extensions),
@@ -312,11 +312,11 @@ class QuestionSingleChoice(TestQuestion):
         self.shuffle = shuffle
         self.answers = answers
 
-    def get_options(self) -> dict[str, Union[str, Path]]:
+    def get_options(self) -> dict[str, str | Path]:
         # choice[answer][0]
         # choice[image][0]"; filename="", octet-stream
         # choice[points][0]
-        answer_options: dict[str, Union[str, Path]] = {}
+        answer_options: dict[str, str | Path] = {}
         for index, (answer, points) in enumerate(self.answers):
             answer_options[f"choice[answer][{index}]"] = answer
             answer_options[f"choice[answer_id][{index}]"] = "-1"
@@ -362,11 +362,11 @@ class QuestionMultipleChoice(TestQuestion):
         self.answers = answers
         self.selection_limit = selection_limit
 
-    def get_options(self) -> dict[str, Union[str, Path]]:
+    def get_options(self) -> dict[str, str | Path]:
         # choice[answer][0]
         # choice[image][0]"; filename="", octet-stream
         # choice[points][0]
-        answer_options: dict[str, Union[str, Path]] = {}
+        answer_options: dict[str, str | Path] = {}
         for index, answer in enumerate(self.answers):
             answer_options[f"choice[answer][{index}]"] = answer.answer
             answer_options[f"choice[answer_id][{index}]"] = "-1"
@@ -439,7 +439,7 @@ class Spec:
 
 
 def load_spec_from_file(path: Path) -> Spec:
-    with open(path, "r") as file:
+    with open(path) as file:
         data = yaml.safe_load(file)
     questions: dict[str, TestQuestion] = {}
 
@@ -580,7 +580,7 @@ def manual_grading_write_question_md(
         text = re.sub(r"<p[^>]+>(\s|&nbsp;)+</p>\n*", "", text)
         text = re.sub(r"\s+<pre>", "<pre>", text)
         text = re.sub(r"</p>(\s|\n)+", "</p>", text)
-        text = markdownify(text, escape_misc=False, escape_underscore=False, escape_asterisks=False)
+        text = markdownify(text, escape_misc=False, escape_underscores=False, escape_asterisks=False)
         text = re.sub(r"\n+```", "\n```", text)
         text = text.replace(r"\_", "_")
         return text.strip()
@@ -649,7 +649,7 @@ def load_manual_grading_results_from_md(folder: Path) -> dict[str, ManualGrading
     participant_results = dict()
     for question_md in folder.glob("*.md"):
         question_id = str(question_md.name).replace(".md", "")
-        with open(question_md, "r") as f:
+        with open(question_md) as f:
             content = f.read()
         question_results = _parse_manual_grading_question_file(question_id, content)
         students = _parse_students_from_md(content)
@@ -719,7 +719,7 @@ def _parse_student_question_result(
             question_id,
             question_title,
             float(max_points),
-            "file_upload" if "file\\_upload" == answer else "freeform_text",
+            "file_upload" if answer == "file\\_upload" else "freeform_text",
         ),
         answer,
         float(points),

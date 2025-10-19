@@ -1,5 +1,6 @@
+from collections.abc import Awaitable, Callable
 from pathlib import Path, PurePath
-from typing import Awaitable, Callable, Optional
+from typing import Optional, cast
 
 from PFERD.crawl.ilias.kit_ilias_html import IliasElementType
 from PFERD.logging import log
@@ -10,12 +11,13 @@ from .ilias_action import IliasInteractor
 from .ilias_html import ExtendedIliasPage
 from .spec import (
     IliasTest,
-    TestQuestion,
-    filter_with_regex,
-    TestTab,
-    manual_grading_write_question_md,
     ManualGradingParticipantResults,
+    ProgrammingQuestionAnswer,
+    TestQuestion,
+    TestTab,
+    filter_with_regex,
     load_manual_grading_results_from_md,
+    manual_grading_write_question_md,
 )
 
 
@@ -139,7 +141,7 @@ async def slurp_participant_results(
     tab_page = await interactor.select_tab(test_page, TestTab.MANUAL_GRADING)
 
     log.explain("Navigating to manual grading per participant")
-    tab_page = await interactor.select_page(tab_page.get_manual_grading_per_participant_url())
+    tab_page = await interactor.select_page(cast(str, tab_page.get_manual_grading_per_participant_url()))
 
     log.explain("Showing all participants")
     page = await interactor.set_manual_grading_filter_show_all(tab_page)
@@ -161,7 +163,7 @@ async def slurp_participant_results(
         for answer in participant_result.answers:
             question = answer.question
             if question.question_type == "file_upload":
-                for file in answer.answer:
+                for file in cast(list[ProgrammingQuestionAnswer], answer.answer):
                     await file.download(interactor)
         participant_results.append(participant_result)
     return participant_results
@@ -183,7 +185,7 @@ async def upload_grading_state(
     tab_page = await interactor.select_tab(test_page, TestTab.MANUAL_GRADING)
 
     log.explain("Navigating to manual grading per participant")
-    tab_page = await interactor.select_page(tab_page.get_manual_grading_per_participant_url())
+    tab_page = await interactor.select_page(cast(str, tab_page.get_manual_grading_per_participant_url()))
 
     log.explain("Showing all participants")
     page = await interactor.set_manual_grading_filter_show_all(tab_page)

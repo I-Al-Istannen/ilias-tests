@@ -1,10 +1,10 @@
 import argparse
 import asyncio
 import configparser
+import json
 import sys
 from dataclasses import asdict
 from pathlib import Path, PurePath
-import json
 from typing import Any
 
 from PFERD.auth import KeyringAuthenticator, KeyringAuthSection, SimpleAuthenticator, SimpleAuthSection
@@ -13,15 +13,15 @@ from PFERD.logging import log
 from PFERD.utils import fmt_path
 
 from .automation import (
-    slurp_tests_from_folder,
     add_test,
     ilias_glob_regex,
     slurp_grading_state_to_md,
-    upload_grading_state,
     slurp_participant_results,
+    slurp_tests_from_folder,
+    upload_grading_state,
 )
 from .ilias_action import IliasInteractor
-from .spec import load_spec_from_file, dump_tests_to_yml, filter_with_regex, TestTab
+from .spec import TestTab, dump_tests_to_yml, filter_with_regex, load_spec_from_file
 
 
 def load_interactor(args: argparse.Namespace):

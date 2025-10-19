@@ -27,3 +27,10 @@ ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120
+
+[dependency-groups]
+dev = [
+    "pip>=25.2",
+    "pyright>=1.1.406",
+    "ruff>=0.14.1",
+]

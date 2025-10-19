@@ -4,35 +4,34 @@ import http.cookies
 import json
 import mimetypes
 import ssl
+from collections.abc import Callable
 from pathlib import Path, PurePath
 from random import randint
-from typing import Any, Union, Callable, Optional
+from typing import Any, Mapping, Optional, cast
 
 import aiohttp
 import certifi
+from aiohttp import ClientTimeout
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 
 # noinspection PyProtectedMember
 from PFERD.crawl.ilias.async_helper import _iorepeat
-from PFERD.crawl.ilias.kit_ilias_html import IliasPage
-
+from PFERD.crawl.ilias.kit_ilias_html import IliasPage, IliasSoup
 from PFERD.crawl.ilias.kit_ilias_web_crawler import KitIliasWebCrawler
 from PFERD.crawl.ilias.shibboleth_login import ShibbolethLogin
 from PFERD.logging import log
-from PFERD.utils import soupify, fmt_path
-from aiohttp import ClientTimeout
-from bs4 import BeautifulSoup
+from PFERD.utils import fmt_path, soupify
 
 from .ilias_html import ExtendedIliasPage, random_ilfilehash
 from .spec import (
-    TestQuestion,
-    PageDesignBlock,
-    PageDesignBlockText,
-    PageDesignBlockImage,
-    PageDesignBlockCode,
-    TestTab,
     ManualGradingParticipantResults,
+    PageDesignBlock,
+    PageDesignBlockCode,
+    PageDesignBlockImage,
+    PageDesignBlockText,
+    TestQuestion,
+    TestTab,
     manual_grading_feedback_md_to_html,
 )
 
@@ -526,8 +525,12 @@ class IliasInteractor:
         data = {"participant_status": "3", "cmd[applyManScoringParticipantsFilter]": "Filter+anwenden"}
 
         def is_valid_page(page: ExtendedIliasPage):
+            from bs4.element import Tag
+
             # noinspection PyProtectedMember
-            return page._soup.find(id="participant_status").find("option", selected=True).get("value") == "3"
+            participant_status = cast(Tag, page._soup.find(id="participant_status"))
+            selected = cast(Tag, participant_status.find("option", selected=True))
+            return selected.get("value") == "3"
 
         return await self._post_authenticated(
             filter_url,
@@ -555,22 +558,22 @@ class IliasInteractor:
         for answer in results.answers:
             question_id = answer.question.id
             data[f"question__{question_id}__points"] = str(answer.points)
-            data[f"question__{question_id}__feedback"] = manual_grading_feedback_md_to_html(answer.feedback)
+            data[f"question__{question_id}__feedback"] = manual_grading_feedback_md_to_html(answer.feedback or "")
         save_url = page.get_manual_grading_save_url()
 
         return await self._post_authenticated(save_url, data)
 
     async def _get_extended_page(self, url: str) -> ExtendedIliasPage:
-        return ExtendedIliasPage(await self._get_soup(url), url)
+        return ExtendedIliasPage(await self._get_soup(url))
 
     @_iorepeat(attempts=2, name="request page", failure_is_error=True)
-    async def _get_soup(self, url: str, root_page_allowed: bool = False) -> BeautifulSoup:
+    async def _get_soup(self, url: str, root_page_allowed: bool = False) -> IliasSoup:
         log.explain(f"Requesting page for '{url}'")
         auth_id = await self._current_auth_id()
 
         async def do_request():
             async with self.session.get(url) as request:
-                soup = soupify(await request.read())
+                soup = IliasSoup(soupify(await request.read()), str(request.url))
                 if IliasPage.is_logged_in(soup):
                     # noinspection PyProtectedMember
                     return KitIliasWebCrawler._verify_page(soup, url, root_page_allowed)
@@ -591,7 +594,7 @@ class IliasInteractor:
     async def _post_authenticated(
         self,
         url: str,
-        data: Union[dict[str, Union[str, list[str]]], Callable[[], aiohttp.FormData]],
+        data: Mapping[str, str | list[str]] | Callable[[], aiohttp.FormData],
         request_succeeded: Callable[[aiohttp.ClientResponse], bool] = lambda resp: 200 <= resp.status < 300,
         soup_succeeded: Callable[[ExtendedIliasPage], bool] = ExtendedIliasPage.page_has_success_alert,
     ) -> ExtendedIliasPage:
@@ -599,18 +602,18 @@ class IliasInteractor:
         auth_id = await self._current_auth_id()
 
         def build_form_data():
-            if isinstance(data, dict):
+            if isinstance(data, Callable):
+                return data()
+            else:
                 form_data = aiohttp.FormData()
                 for key, val in data.items():
                     form_data.add_field(key, val)
                 return form_data
-            else:
-                return data()
 
         async def do_request():
             async with self.session.post(url, data=build_form_data(), allow_redirects=True) as response:
                 if request_succeeded(response):
-                    my_page = ExtendedIliasPage(soupify(await response.read()), str(response.url))
+                    my_page = ExtendedIliasPage(IliasSoup(soupify(await response.read()), str(response.url)))
                     if soup_succeeded(my_page):
                         return my_page
                     else:
