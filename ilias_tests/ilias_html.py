@@ -679,10 +679,12 @@ class ExtendedIliasPage(IliasPage):
         return has_danger_alert
 
     def get_test_dashboard_end_all_passes_url(self) -> Optional[str]:
-        link = self._soup.find(name="a", attrs={"href": lambda x: x is not None and "cmd=finishAllUserPasses" in x})
+        link = self._soup.find(
+            name="button", attrs={"data-action": lambda x: x is not None and "cmd=finishalluserpasses" in x.lower()}
+        )
         if not link:
             return None
-        return self._abs_url_from_link(link)
+        return self._abs_url_from_relative(__(link.get("data-action")))
 
     def get_test_dashboard_end_all_passes_confirm_url(self):
         return self._form_target_from_button("cmd[confirmFinishTestPassForAllUser]")[0]
