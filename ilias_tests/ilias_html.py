@@ -622,7 +622,7 @@ class ExtendedIliasPage(IliasPage):
                 case "textarea":
                     feedback = feedback_element.getText().strip()
                 case "input":
-                    feedback = feedback_element.get("value")
+                    feedback = cast(str | None, feedback_element.get("value"))
                 case _:
                     # Should be unreachable, until ILIAS decides to toss things up
                     raise CrawlError(f"Unknown feedback element type: {feedback_element.name}")
@@ -637,7 +637,7 @@ class ExtendedIliasPage(IliasPage):
                     ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
                     answer_value,
                     float(__(points)),
-                    __(feedback),
+                    feedback,
                     is_final_feedback,
                 )
             )
