@@ -172,12 +172,6 @@ class IliasInteractor:
                 "Online",
                 section_title="Verfügbarkeit",
             )
-        elif human_name == "activation_type":
-            return self._translate_from_ilias(
-                settings_page,
-                "Zeitlich begrenzte Verfügbarkeit",
-                section_title="Verfügbarkeit",
-            )
         elif human_name == "access_period[start]":
             return self._translate_from_ilias(
                 settings_page,
@@ -321,10 +315,9 @@ class IliasInteractor:
         }
         activation_params = {
             "online": "checked" if online else None,
-            "activation_type": "checked",  # time limited
             "access_period[start]": _format_time(datetime.datetime.now()),  # start of it
             "access_period[end]": _format_time(datetime.datetime.now()),  # end of it
-            "activation_visibility": "checked"  # always visible, but not take-able
+            "activation_visibility": "checked",  # always visible, but not take-able
         }
         # FIXME: This is now cursed enough that it doesn't work anymore *and* is annoying
         intro_params = {
