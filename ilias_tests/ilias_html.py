@@ -689,6 +689,21 @@ class ExtendedIliasPage(IliasPage):
     def get_test_dashboard_end_all_passes_confirm_url(self):
         return self._form_target_from_button("cmd[confirmFinishTestPassForAllUser]")[0]
 
+    def get_intro_text_page_url(self) -> str:
+        if link := self._soup.select_one("#subtab_edit_introduction a"):
+            return self._abs_url_from_link(link)
+
+        raise CrawlError("Could not find intro text page link")
+
+    def get_intro_text_design_url(self) -> str:
+        btn = self._soup.find(
+            "button",
+            attrs={"data-action": lambda x: x is not None and "cmd=edit" in x.lower()},
+        )
+        if not btn:
+            raise CrawlError("Could not find intro text design button")
+        return self._abs_url_from_relative(__(btn.get("data-action")))
+
 
 def _parse_time(time_input: bs4.Tag) -> Optional[datetime.datetime]:
     time_str = time_input.get("value", None)

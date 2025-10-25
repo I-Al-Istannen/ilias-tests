@@ -306,12 +306,11 @@ class IliasInteractor:
         settings_page: ExtendedIliasPage,
         title: str,
         description: str,
-        intro_text: str,
         starting_time: Optional[datetime.datetime],
         ending_time: Optional[datetime.datetime],
         number_of_tries: int,
         online: bool = False,
-    ):
+    ) -> ExtendedIliasPage:
         """Configures the base test properties."""
         log.explain_topic(f"Configuring test {title}")
         base_params = {
@@ -400,6 +399,10 @@ class IliasInteractor:
             return form_data
 
         return await self._post_authenticated(url=url, data=build_form_data)
+
+    async def configure_test_intro(self, settings_page: ExtendedIliasPage, intro: list[PageDesignBlock]):
+        intro_page = await self.select_page(settings_page.get_intro_text_page_url())
+        await self.design_page_add_blocks(await self.select_page(intro_page.get_intro_text_design_url()), intro)
 
     async def configure_test_scoring(self, settings_page: ExtendedIliasPage) -> ExtendedIliasPage:
         log.explain_topic("Configuring test scoring settings")

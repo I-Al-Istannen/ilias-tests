@@ -157,7 +157,6 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
                 settings_page=tab,
                 title=test.title,
                 description=test.description,
-                intro_text=test.intro_text,
                 starting_time=test.starting_time,
                 ending_time=test.ending_time,
                 number_of_tries=test.number_of_tries,
