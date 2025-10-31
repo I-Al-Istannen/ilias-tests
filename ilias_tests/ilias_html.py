@@ -257,10 +257,11 @@ class ExtendedIliasPage(IliasPage):
     def get_test_question_save_order_data(self, question_to_position: dict[str, str]) -> tuple[str, dict[str, str]]:
         url, _, _ = self._form_target_from_button("cmd[saveOrderAndObligations]")
         data = {
-            "cmd[saveOrderAndObligations]": "Sortierung abspeichern",
+            "cmd[saveOrderAndObligations]": "Sortierung+abspeichern",
         }
         for question_id, value in question_to_position.items():
-            data[f"order[q_{question_id}]"] = value
+            data[f"order[{question_id}]"] = value
+        log.explain(f"Setting order {data}")
         return url, data
 
     def get_test_question_listing(self) -> list[tuple[str, str]]:

@@ -44,7 +44,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
     tab_page = await interactor.select_tab(tab_page, TestTab.QUESTIONS)
 
     log.explain_topic("Adding questions")
-    for index, question in enumerate(test.questions):
+    for index, question in enumerate(reversed(test.questions)):
         log.status(
             "[bold cyan]", "Create", f"{indent}Adding question {index + 1}", f"[bright_black]({question.title!r})"
         )
