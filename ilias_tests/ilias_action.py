@@ -12,7 +12,6 @@ from typing import Any, Mapping, Optional, cast
 
 import aiohttp
 import certifi
-from aiohttp import ClientTimeout
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 
@@ -23,6 +22,7 @@ from PFERD.crawl.ilias.kit_ilias_web_crawler import KitIliasWebCrawler
 from PFERD.crawl.ilias.shibboleth_login import ShibbolethLogin
 from PFERD.logging import log
 from PFERD.utils import fmt_path, soupify
+from aiohttp import ClientTimeout
 
 from .ilias_html import ExtendedIliasPage, random_ilfilehash
 from .spec import (
@@ -686,6 +686,8 @@ class IliasInteractor:
 
     async def set_manual_grading_filter_show_all(self, tab_page: ExtendedIliasPage):
         filter_url = tab_page.get_manual_grading_filter_url()
+        # Show all rows of the table!
+        filter_url += "&manScorePartTable_trows=800"
         data = {"participant_status": "3", "cmd[applyManScoringParticipantsFilter]": "Filter+anwenden"}
 
         def is_valid_page(page: ExtendedIliasPage):
@@ -696,11 +698,22 @@ class IliasInteractor:
             selected = cast(Tag, participant_status.find("option", selected=True))
             return selected.get("value") == "3"
 
-        return await self._post_authenticated(
+        result_page = await self._post_authenticated(
             filter_url,
             data=data,
             soup_succeeded=is_valid_page,
         )
+
+        # Try to check if the table is paginated
+        # noinspection PyProtectedMember
+        if page_select := result_page._soup.find(id="tab_page_sel_1", name="select"):
+            log.explain(f"Element: {page_select}")
+            raise CrawlError(
+                "Found page selection element on manual grading table. Maybe the table is truncated? "
+                "Refusing further operation."
+            )
+
+        return result_page
 
     async def upload_manual_grading_result(
         self,
