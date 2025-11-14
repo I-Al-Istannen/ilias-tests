@@ -346,8 +346,8 @@ class IliasInteractor:
             "enable_examview": "checked",  # Show answers before test submission
         }
         other_params = {
-            "autosave": "checked",
-            "autosave_ival": "30",
+            # "autosave": "checked",
+            # "autosave_ival": "30",
         }
 
         data = {
