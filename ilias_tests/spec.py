@@ -654,6 +654,9 @@ def load_manual_grading_results_from_md(folder: Path) -> dict[str, ManualGrading
         question_results = _parse_manual_grading_question_file(question_id, content)
         students = _parse_students_from_md(content)
 
+        for student, info in students.items():
+            if student not in question_results:
+                raise CrawlError(f"Missing answer from {info.first_name} {info.last_name} in file {question_md.name}")
         for email, result in question_results.items():
             if email not in participant_results:
                 participant_results[email] = ManualGradingParticipantResults(students[email], [])
@@ -703,7 +706,7 @@ def _parse_student_question_result(
     student_mail = student_mail[: student_mail.find("(")].strip()
 
     reader.read_until("### Answer")
-    points, max_points = reader.read_line().strip().split(" / ")
+    points, max_points = reader.read_line().replace(" ", "").split("/")
 
     reader.read_until("```\n")
     answer = reader.read_until("\n```\n")
