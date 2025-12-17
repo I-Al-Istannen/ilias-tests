@@ -649,7 +649,7 @@ class ExtendedIliasPage(IliasPage):
         user_answer: bs4.Tag,
     ) -> Optional[tuple[ManualGradingQuestionType, str | list[ProgrammingQuestionAnswer]]]:
         if text_answer := user_answer.select_one(".ilc_question_TextQuestion"):
-            text_answer = text_answer.select_one(".solutionbox")
+            text_answer = text_answer.select_one(".ilc_qanswer_Answer")
             if text_answer:
                 return "freeform_text", text_answer.decode_contents()
         elif file_answer := user_answer.select_one(".ilc_question_FileUpload"):
