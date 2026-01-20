@@ -732,13 +732,17 @@ def _normalize_tag_for_design_block(element: bs4.Tag):
     for emph in element.find_all("em"):
         emph.name = "span"
         classes = emph.get_attribute_list("class")
-        classes.remove("ilc_em_Emph")
+        if "ilc_em_Emph" in classes:
+            classes.remove("ilc_em_Emph")
         classes.append("ilc_text_inline_Emph")
+        emph["class"] = classes
 
     for strong in element.find_all("strong"):
         strong.name = "span"
         classes = strong.get_attribute_list("class")
-        classes.remove("ilc_strong_Strong")
+        if "ilc_strong_Strong" in classes:
+            classes.remove("ilc_strong_Strong")
         classes.append("ilc_text_inline_Strong")
+        strong["class"] = classes
 
     return _norm(element.decode_contents())
