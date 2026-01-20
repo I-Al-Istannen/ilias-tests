@@ -35,6 +35,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         test.starting_time,
         test.ending_time,
         test.number_of_tries,
+        show_intro_text=bool(test.intro_text),
     )
     log.status("[cyan]", "Create", f"{indent}Configure introduction text")
     await interactor.configure_test_intro(tab_page, [PageDesignBlockText(test.intro_text)])

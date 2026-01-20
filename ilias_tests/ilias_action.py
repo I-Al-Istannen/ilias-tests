@@ -303,6 +303,7 @@ class IliasInteractor:
         starting_time: Optional[datetime.datetime],
         ending_time: Optional[datetime.datetime],
         number_of_tries: int,
+        show_intro_text: bool,
         online: bool = False,
     ) -> ExtendedIliasPage:
         """Configures the base test properties."""
@@ -319,10 +320,8 @@ class IliasInteractor:
             "access_period[end]": _format_time(datetime.datetime.now()),  # end of it
             "activation_visibility": "checked",  # always visible, but not take-able
         }
-        # FIXME: This is now cursed enough that it doesn't work anymore *and* is annoying
         intro_params = {
-            # "intro_enabled": "1" if intro_text else "0",  # show text before the test
-            # "introduction": intro_text,  # the text. Must not be empty
+            "intro_enabled": "checked" if show_intro_text else None,  # show text before the test
         }
         access_params = {"starting_time": _format_time(starting_time), "ending_time": _format_time(ending_time)}
         run_test_params = {

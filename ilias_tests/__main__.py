@@ -160,6 +160,7 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
                 starting_time=test.starting_time,
                 ending_time=test.ending_time,
                 number_of_tries=test.number_of_tries,
+                show_intro_text=bool(test.intro_text),
                 online=args.publish is True,
             )
         if args.fix_result_viewing:
