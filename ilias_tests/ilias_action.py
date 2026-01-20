@@ -502,14 +502,16 @@ class IliasInteractor:
             match block:
                 case PageDesignBlockImage(image=image):
                     current_id = await self.design_page_add_image_block(edit_page, path=image, after_id=current_id)
-                case PageDesignBlockText(text_html=text):
-                    current_id = await self.design_page_add_text_block(edit_page, text_html=text, after_id=current_id)
+                case PageDesignBlockText(text_html=_, characteristic=_):
+                    current_id = await self.design_page_add_text_block(edit_page, block=block, after_id=current_id)
                 case PageDesignBlockCode(code=code, language=lang, name=name):
                     current_id = await self.design_page_add_code_block(edit_page, code, lang, name, current_id)
                 case _:
-                    raise CrawlError("Unknown page design block")
+                    raise CrawlError(f"Unknown page design block: {block!r}")
 
-    async def design_page_add_text_block(self, edit_page: ExtendedIliasPage, text_html: str, after_id: str) -> str:
+    async def design_page_add_text_block(
+        self, edit_page: ExtendedIliasPage, block: PageDesignBlockText, after_id: str
+    ) -> str:
         log.explain(f"Adding text block after {after_id}")
         post_url, _ = edit_page.get_test_question_design_post_url()
         new_id = "".join([str(randint(0, 9)) for _ in range(20)])
@@ -521,8 +523,8 @@ class IliasInteractor:
                 "data": {
                     "after_pcid": after_id,
                     "pcid": new_id,
-                    "content": text_html,
-                    "characteristic": "Standard",
+                    "content": block.text_html,
+                    "characteristic": block.characteristic.value,
                     "fromPlaceholder": False,
                 },
             },

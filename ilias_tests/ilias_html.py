@@ -10,6 +10,7 @@ import bs4
 from PFERD.crawl import CrawlError
 from PFERD.crawl.ilias.kit_ilias_html import IliasPage, IliasSoup
 from PFERD.logging import log
+from PFERD.utils import soupify
 
 from .spec import (
     QuestionUploadFile,
@@ -746,3 +747,27 @@ def _normalize_tag_for_design_block(element: bs4.Tag):
         strong["class"] = classes
 
     return _norm(element.decode_contents())
+
+
+def raw_html_to_page_design(html: str) -> list[PageDesignBlock]:
+    soup = soupify(html.encode())
+    blocks = []
+
+    headings = {
+        "h1": PageDesignBlockText.Characteristic.Heading1,
+        "h2": PageDesignBlockText.Characteristic.Heading2,
+        "h3": PageDesignBlockText.Characteristic.Heading3,
+    }
+
+    for elem in soup.children:
+        if not isinstance(elem, bs4.Tag):
+            log.explain(f"Skipping non-tag element {repr(elem)}")
+            continue
+        if elem.name in headings:
+            blocks.append(
+                PageDesignBlockText(_normalize_tag_for_design_block(elem), characteristic=headings[elem.name])
+            )
+            continue
+        blocks.append(PageDesignBlockText(_normalize_tag_for_design_block(elem)))
+
+    return blocks

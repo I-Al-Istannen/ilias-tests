@@ -143,8 +143,15 @@ class PageDesignBlock(abc.ABC):
 
 
 class PageDesignBlockText(PageDesignBlock):
-    def __init__(self, text_html: str):
+    class Characteristic(Enum):
+        Standard = "Standard"
+        Heading1 = "Headline1"
+        Heading2 = "Headline2"
+        Heading3 = "Headline3"
+
+    def __init__(self, text_html: str, characteristic: Characteristic = Characteristic.Standard):
         self.text_html = text_html
+        self.characteristic = characteristic
 
     def serialize(self):
         return {"text": self.text_html, "type": "text"}

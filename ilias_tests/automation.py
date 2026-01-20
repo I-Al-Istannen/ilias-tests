@@ -8,11 +8,10 @@ from PFERD.utils import fmt_path
 from slugify import slugify
 
 from .ilias_action import IliasInteractor
-from .ilias_html import ExtendedIliasPage
+from .ilias_html import ExtendedIliasPage, raw_html_to_page_design
 from .spec import (
     IliasTest,
     ManualGradingParticipantResults,
-    PageDesignBlockText,
     ProgrammingQuestionAnswer,
     TestQuestion,
     TestTab,
@@ -38,7 +37,7 @@ async def add_test(interactor: IliasInteractor, folder: ExtendedIliasPage, test:
         show_intro_text=bool(test.intro_text),
     )
     log.status("[cyan]", "Create", f"{indent}Configure introduction text")
-    await interactor.configure_test_intro(tab_page, [PageDesignBlockText(test.intro_text)])
+    await interactor.configure_test_intro(tab_page, raw_html_to_page_design(test.intro_text))
     log.status("[cyan]", "Create", f"{indent}Configure scoring settings so people see their results")
     tab_page = await interactor.configure_test_scoring(tab_page)
     log.explain_topic("Navigating to questions")
