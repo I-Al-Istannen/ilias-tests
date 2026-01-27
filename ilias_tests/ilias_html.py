@@ -128,6 +128,13 @@ class ExtendedIliasPage(IliasPage):
             if not __(tab_list["id"]).startswith("tab_"):
                 continue
             link = _(tab_list.find(name="a"))
+
+            # https://github.com/ILIAS-eLearning/ILIAS/commit/514a820e681d6f6ee66646930b7e1db1533e5141
+            # added accessibility info spans of the form "(Selected)" inside the link text, remove them
+            # We do not lose selection information, as that is solved via a css class on the `a` tag.
+            for accHidden in link.find_all(class_="ilAccHidden"):
+                accHidden.decompose()
+
             result[link.getText().strip()] = self._abs_url_from_link(link)
 
         return result
