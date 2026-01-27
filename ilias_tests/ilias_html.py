@@ -766,9 +766,14 @@ def raw_html_to_page_design(html: str) -> list[PageDesignBlock]:
         "h3": PageDesignBlockText.Characteristic.Heading3,
     }
 
+    log.explain_topic("Converting raw intro text html to page design blocks")
     for elem in soup.children:
+        if not isinstance(elem, bs4.Tag) and not str(elem).strip():
+            log.explain(f"Skipping empty non-tag element in intro text: '{repr(elem)}'")
+            continue
         if not isinstance(elem, bs4.Tag):
-            log.explain(f"Skipping non-tag element {repr(elem)}")
+            log.explain(f"Treating non-tag element {repr(elem)} as text")
+            blocks.append(PageDesignBlockText(text_html=_norm(str(elem))))
             continue
         if elem.name in headings:
             blocks.append(
@@ -776,5 +781,8 @@ def raw_html_to_page_design(html: str) -> list[PageDesignBlock]:
             )
             continue
         blocks.append(PageDesignBlockText(_normalize_tag_for_design_block(elem)))
+
+    if html and not blocks:
+        log.warn(f"Could not parse any blocks from intro text html: '{html}'")
 
     return blocks
