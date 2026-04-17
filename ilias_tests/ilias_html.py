@@ -106,7 +106,7 @@ class ExtendedIliasPage(IliasPage):
         return "cmd=create" in self.normalized_url() and "new_type=tst" in self.normalized_url()
 
     def is_test_question_edit_page(self):
-        return "cmd=editquestion" in self.normalized_url()
+        return "fallbackcmd=createquestion" in self.normalized_url()
 
     def get_test_create_url(self) -> Optional[str]:
         return self._abs_url_from_link(
@@ -160,7 +160,7 @@ class ExtendedIliasPage(IliasPage):
         return result
 
     def get_test_settings_change_data(self) -> tuple[str, set[ExtraFormData]]:
-        form = self._soup.select_one("form.il-standard-form")
+        form = self._soup.select_one("form.c-form")
         if not form:
             raise CrawlError("Could not find properties page. Is this a settings page?")
 
@@ -169,7 +169,7 @@ class ExtendedIliasPage(IliasPage):
 
     def get_test_add_question_url(self):
         """Add a question to a test."""
-        button = self._soup.find(attrs={"onclick": lambda x: x is not None and "cmd=addQuestion" in x})
+        button = self._soup.find(attrs={"onclick": lambda x: x is not None and "cmd=createQuestionForm" in x})
         if not button:
             raise CrawlError("Could not find add question button")
         on_click = __(button["onclick"])
@@ -177,9 +177,16 @@ class ExtendedIliasPage(IliasPage):
         end = on_click.rfind("'")
         return self._abs_url_from_relative(on_click[start + 1 : end])
 
-    def get_test_question_create_url(self) -> str:
+    def get_test_question_create_url(self, question_type: int) -> tuple[str, dict[str, str]]:
         """Enter question editor by selecting its type and information."""
-        return self._form_target_from_button("cmd[executeCreateQuestion]")[0]
+        data = {
+            __(self._get_form_input_by_label_prefix("Fragetyp").attrs["name"]): str(question_type),
+            __(self._get_form_input_by_label_prefix("Rich-Text-Editor").attrs["name"]): "default",
+            __(self._get_form_input_by_label_prefix("Keinen Fragenpool verwenden").attrs["name"]): "1",
+        }
+
+        form = _(self._soup.find("form", class_="c-form"))
+        return self._form_target_from_form(form), data
 
     def get_test_question_finalize_data(self) -> tuple[str, set[ExtraFormData]]:
         """Url for finalizing the question creation."""
@@ -197,6 +204,14 @@ class ExtendedIliasPage(IliasPage):
     def _get_extra_form_values(form: bs4.Tag) -> set[ExtraFormData]:
         extra_values = set()
         for inpt in form.find_all(name="input", attrs={"required": "required"}):
+            extra_values.add(
+                ExtraFormData(
+                    name=__(inpt["name"]),
+                    value=__(inpt.get("value", "")),
+                    disabled=inpt.get("disabled", None) is not None,
+                )
+            )
+        for inpt in form.select(".ilFormRequired > input"):
             extra_values.add(
                 ExtraFormData(
                     name=__(inpt["name"]),
@@ -236,6 +251,9 @@ class ExtendedIliasPage(IliasPage):
             raise CrawlError(f"Could not find {button_name!r} button")
         form = _(btn.find_parent(name="form"))
         return self._abs_url_from_relative(__(form["action"])), btn, form
+
+    def _form_target_from_form(self, form: bs4.Tag):
+        return self._abs_url_from_relative(__(form["action"]))
 
     def get_test_question_after_values(self) -> dict[str, str]:
         position_select = self._soup.find(id="position")
@@ -294,10 +312,8 @@ class ExtendedIliasPage(IliasPage):
         return None
 
     def get_test_question_save_order_data(self, question_to_position: dict[str, str]) -> tuple[str, dict[str, str]]:
-        url, _, _ = self._form_target_from_button("cmd[saveOrderAndObligations]")
-        data = {
-            "cmd[saveOrderAndObligations]": "Sortierung+abspeichern",
-        }
+        url = self._form_target_from_form(_(self._soup.find(name="form", class_="c-table-ordering__form")))
+        data = {}
         for question_id, value in question_to_position.items():
             data[f"order[{question_id}]"] = value
         log.explain(f"Setting order {data}")
@@ -539,9 +555,9 @@ class ExtendedIliasPage(IliasPage):
     ):
         match_source: bs4.Tag
         if section_title is not None:
-            for title in self._soup.select(".il-section-input-header > h2"):
+            for title in self._soup.select(".c-input h2"):
                 if title.get_text().strip() == section_title:
-                    match_source = _(title.find_parent(class_="il-section-input"))
+                    match_source = _(title.find_parent(class_="c-input"))
                     break
             else:
                 raise CrawlError(f"Could not find section with title {section_title!r}")
@@ -587,19 +603,21 @@ class ExtendedIliasPage(IliasPage):
     def get_scoring_settings_url(self):
         link = self._soup.find(
             name="a",
-            attrs={"href": lambda x: x is not None and "ilobjtestsettingsscoringresultsgui" in x.lower()},
+            attrs={
+                "href": lambda x: x is not None and "settingsscoringgui" in x.lower() and "cmd=showform" in x.lower()
+            },
         )
         if not link:
             raise CrawlError("Could not find scoring settings url on test page")
         return self._abs_url_from_link(link)
 
     def get_test_scoring_settings_change_data(self) -> tuple[str, set[ExtraFormData]]:
-        form = self._soup.select_one("form.il-standard-form")
+        form = self._soup.select_one("form.c-form")
         if not form:
             raise CrawlError("Could not find scoring form. Is this a settings (scoring) page?")
 
         extra_values = self._get_extra_form_values(form)
-        return self._abs_url_from_relative(__(form["action"])), extra_values
+        return self._form_target_from_form(form), extra_values
 
     def get_test_scoring_name_for_label(self, label_regex: str) -> list[str]:
         results = []
@@ -719,6 +737,9 @@ class ExtendedIliasPage(IliasPage):
     def page_has_failure_alert(page: "ExtendedIliasPage") -> bool:
         has_danger_alert = False
         for alert in page._soup.find_all(attrs={"role": ["alert", "status"]}):
+            # Alerts in hidden dialogs do not matter
+            if alert.find_parent("dialog", attrs={"open": lambda x: x is None}):
+                continue
             if "alert-danger" in __(alert.get("class", "")):
                 log.warn("Got danger alert")
                 log.warn_contd("  " + alert.getText().strip())

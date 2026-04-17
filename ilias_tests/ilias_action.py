@@ -440,20 +440,14 @@ class IliasInteractor:
         url = question_page.get_test_add_question_url()
         page = await self._get_extended_page(url)
 
+        url, data = page.get_test_question_create_url(question.question_type.value)
         edit_page = await self._post_authenticated(
-            page.get_test_question_create_url(),
-            data={
-                "cmd[executeCreateQuestion]": "Erstellen",
-                "qtype": str(question.question_type.value),
-                "add_quest_cont_edit_mode": "default",  # TinyMCE
-                "usage": "1",  # no question pool
-                "position": "0",  # just put it at the beginning
-            },
+            url,
+            data=data,
             soup_succeeded=lambda pg: pg.is_test_question_edit_page(),
         )
 
         post_data = {**question.get_options(), "cmd[saveReturn]": "Speichern und zurückkehren"}
-
         url, defaults = edit_page.get_test_question_finalize_data()
         for extra in defaults:
             if extra.disabled:
