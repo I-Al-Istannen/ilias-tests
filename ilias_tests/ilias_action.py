@@ -119,11 +119,11 @@ class IliasInteractor:
             raise CrawlError("Could not find test create URL")
         create_page = await self._get_extended_page(create_url)
 
-        submit_url, submit_value = create_page.get_test_create_submit_url()
+        submit_url, post_data = create_page.get_test_create_submit_post_data(title, description)
 
         return await self._post_authenticated(
             submit_url,
-            data={"title": title, "desc": description, "save": submit_value},
+            data=post_data,
             request_succeeded=_auth_redirected_to_test_page,
         )
 
@@ -884,7 +884,7 @@ class IliasInteractor:
 
 
 def _auth_redirected_to_test_page(response: aiohttp.ClientResponse):
-    return "cmdclass=ilobjtestsettingsmaingui" in response.url.query_string.lower()
+    return "cmdclass=ilias\\test\\settings\\mainsettings\\settingsmaingui" in response.url.query_string.lower()
 
 
 def _format_time(time: Optional[datetime.datetime]) -> str:

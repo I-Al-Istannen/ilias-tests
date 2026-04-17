@@ -109,14 +109,34 @@ class ExtendedIliasPage(IliasPage):
         return "cmd=editquestion" in self.normalized_url()
 
     def get_test_create_url(self) -> Optional[str]:
-        return self._abs_url_from_link(_(self._soup.find(id="tst")))
+        return self._abs_url_from_link(
+            _(
+                self._soup.find(
+                    "a", attrs={"href": lambda x: x is not None and "cmd=create" in x and "new_type=tst" in x}
+                )
+            )
+        )
 
-    def get_test_create_submit_url(self) -> tuple[str, str]:
+    def get_test_create_submit_post_data(self, title: str, description: str) -> tuple[str, dict[str, str]]:
         if not self.is_test_create_page():
             raise CrawlError("Not on test create page")
-        save_button = _(self._soup.find(attrs={"name": "cmd[save]"}))
-        form = _(save_button.find_parent(name="form"))
-        return self._abs_url_from_relative(__(form["action"])), __(save_button["value"])
+        form = _(
+            self._soup.find(
+                "form",
+                attrs={
+                    "action": lambda x: x is not None
+                    and "cmdclass=ilobjtestgui" in x.lower()
+                    and "new_type=tst" in x.lower()
+                },
+            )
+        )
+        title_name = __(_(self._get_form_input_by_label_prefix("Titel")).attrs["name"])
+        description_name = __(_(self._get_form_input_by_label_prefix("Zusammenfassung")).attrs["name"])
+
+        return self._abs_url_from_relative(__(form["action"])), {
+            title_name: title,
+            description_name: description,
+        }
 
     def get_test_tabs(self) -> dict[str, str]:
         tab = self._soup.find(id="ilTab")
@@ -252,8 +272,7 @@ class ExtendedIliasPage(IliasPage):
                 continue
 
             order_input = row.find(
-                name="input",
-                attrs={"name": lambda x: x is not None and x.isdigit(), "type": "number"}
+                name="input", attrs={"name": lambda x: x is not None and x.isdigit(), "type": "number"}
             )
             if not order_input:
                 raise CrawlError(f"Could not find order column. Page-Alerts: {self._get_all_alerts()}")
@@ -292,10 +311,11 @@ class ExtendedIliasPage(IliasPage):
         return result
 
     def get_test_question_edit_url(self):
-        btn = _(self._soup.find(
-            name="button",
-            attrs={"data-action": lambda x: x is not None and "cmd=editquestion" in x.lower()}
-        ))
+        btn = _(
+            self._soup.find(
+                name="button", attrs={"data-action": lambda x: x is not None and "cmd=editquestion" in x.lower()}
+            )
+        )
         return self._abs_url_from_relative(__(btn.get("data-action")))
 
     def get_test_question_reconstruct_from_edit(self, page_design: list[PageDesignBlock]):
@@ -478,8 +498,12 @@ class ExtendedIliasPage(IliasPage):
         title_elem = self._get_form_input_by_label_prefix("Titel*")
         description_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
         # intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
-        starting_time_elem = self._get_form_input_by_label_prefix("Start", ".c-input__field .c-input__field .c-input label")
-        ending_time_elem = self._get_form_input_by_label_prefix("Ende", ".c-input__field .c-input__field .c-input label")
+        starting_time_elem = self._get_form_input_by_label_prefix(
+            "Start", ".c-input__field .c-input__field .c-input label"
+        )
+        ending_time_elem = self._get_form_input_by_label_prefix(
+            "Ende", ".c-input__field .c-input__field .c-input label"
+        )
         number_of_tries_elem = self._get_form_input_by_label_prefix("Maximale Anzahl von Testdurchläufen")
         return IliasTest(
             title=_norm(__(title_elem.get("value", ""))),
