@@ -5,6 +5,7 @@ import string
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, TypeVar, cast, Callable, Awaitable
+import urllib.parse
 
 import bs4
 from PFERD.crawl import CrawlError
@@ -87,6 +88,8 @@ class ExtendedIliasPage(IliasPage):
             "cmdclass=ilobjtestgui",
             "cmdclass=ilparticipantstestresultsgui",
             "cmdclass=iltestscoringbyquestionsgui",
+            urllib.parse.quote("ilias\\test\\presentation\\testscreengui").lower(),
+            urllib.parse.quote("ilias\\test\\settings\\mainsettings\\settingsmaingui").lower(),
         )
         for cmdclass in possible_cmdclasses:
             if cmdclass in self.normalized_url():
@@ -568,7 +571,8 @@ class ExtendedIliasPage(IliasPage):
         for label in match_source.select(selector):
             text = label.get_text().strip()
             if isinstance(label_match, str):
-                matches = text == label_match
+                # allow required field asterisk
+                matches = text == label_match or text == label_match + "*"
             else:
                 matches = re.match(label_match, text) is not None
             if not matches:

@@ -151,7 +151,7 @@ class IliasInteractor:
 
     def _translate(self, settings_page: ExtendedIliasPage, human_name: str):
         if human_name == "title":
-            return self._translate_from_ilias(settings_page, "Titel*", section_title="Einstellungen des Tests")
+            return self._translate_from_ilias(settings_page, "Titel", section_title="Einstellungen des Tests")
         elif human_name == "description":
             return self._translate_from_ilias(settings_page, "Zusammenfassung", section_title="Einstellungen des Tests")
         elif human_name == "question_set_type":
@@ -217,7 +217,7 @@ class IliasInteractor:
         elif human_name == "nr_of_tries":
             return self._translate_from_ilias(
                 settings_page,
-                "Maximale Anzahl von Testdurchläufen*",
+                "Maximale Anzahl von Testdurchläufen",
                 section_title="Durchführung: Steuerung Testdurchlauf",
             )
         elif human_name == "title_output":
@@ -289,7 +289,7 @@ class IliasInteractor:
         elif human_name == "autosave_ival":
             return self._translate_from_ilias(
                 settings_page,
-                "Speicherintervall*",
+                "Speicherintervall",
                 section_title="Durchführung: Verhalten der Frage",
             )
         else:
