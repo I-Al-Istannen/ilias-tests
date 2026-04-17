@@ -12,6 +12,7 @@ from typing import Any, Mapping, Optional, cast
 
 import aiohttp
 import certifi
+from aiohttp import ClientTimeout
 from PFERD.auth import Authenticator
 from PFERD.crawl import CrawlError
 
@@ -22,7 +23,6 @@ from PFERD.crawl.ilias.kit_ilias_web_crawler import KitIliasWebCrawler
 from PFERD.crawl.ilias.shibboleth_login import ShibbolethLogin
 from PFERD.logging import log
 from PFERD.utils import fmt_path, soupify
-from aiohttp import ClientTimeout
 
 from .ilias_html import ExtendedIliasPage, random_ilfilehash
 from .spec import (

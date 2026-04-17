@@ -2,10 +2,10 @@ import datetime
 import random
 import re
 import string
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, TypeVar, cast, Callable, Awaitable
-import urllib.parse
+from typing import Awaitable, Callable, Optional, TypeVar, cast
 
 import bs4
 from PFERD.crawl import CrawlError
@@ -14,22 +14,22 @@ from PFERD.logging import log
 from PFERD.utils import soupify
 
 from .spec import (
-    QuestionUploadFile,
-    QuestionFreeFormText,
-    QuestionSingleChoice,
-    QuestionMultipleChoice,
-    PageDesignBlock,
-    PageDesignBlockText,
-    PageDesignBlockImage,
-    PageDesignBlockCode,
     IliasTest,
-    TestQuestion,
-    ManualGradingParticipantInfo,
     ManualGradingGradedQuestion,
+    ManualGradingParticipantInfo,
     ManualGradingParticipantResults,
     ManualGradingQuestion,
     ManualGradingQuestionType,
+    PageDesignBlock,
+    PageDesignBlockCode,
+    PageDesignBlockImage,
+    PageDesignBlockText,
     ProgrammingQuestionAnswer,
+    QuestionFreeFormText,
+    QuestionMultipleChoice,
+    QuestionSingleChoice,
+    QuestionUploadFile,
+    TestQuestion,
 )
 
 T = TypeVar("T")
