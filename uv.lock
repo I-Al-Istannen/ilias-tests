@@ -396,7 +396,7 @@ dev = [
 requires-dist = [
     { name = "markdown2", specifier = ">=2.5.1" },
     { name = "markdownify", specifier = ">=0.13.1" },
-    { name = "pferd", git = "https://github.com/garmelon/pferd?rev=master" },
+    { name = "pferd", git = "https://github.com/garmelon/pferd?rev=ilias-10" },
     { name = "python-slugify" },
     { name = "pyyaml" },
 ]
@@ -664,7 +664,7 @@ wheels = [
 [[package]]
 name = "pferd"
 version = "3.8.3"
-source = { git = "https://github.com/garmelon/pferd?rev=master#6353571eb4c1812fd3f4a06fb3d5812b42676095" }
+source = { git = "https://github.com/garmelon/pferd?rev=ilias-10#446204f4d558b3e7c0a33e053744371643db92d2" }
 dependencies = [
     { name = "aiohttp" },
     { name = "beautifulsoup4" },
