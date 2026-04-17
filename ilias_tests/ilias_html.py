@@ -239,9 +239,9 @@ class ExtendedIliasPage(IliasPage):
 
     def _get_test_question_ids_and_links(self) -> list[tuple[str, bs4.Tag]]:
         """Returns [(id, link tag for title)]"""
-        if "cmd=questions" not in self.normalized_url() or "ilobjtestgui" not in self.normalized_url():
+        if "cmd=showquestions" not in self.normalized_url() or "ilobjtestgui" not in self.normalized_url():
             raise CrawlError("Not on test question page")
-        table = self._soup.find(name="table", id=lambda x: x is not None and x.startswith("tst_qst_lst"))
+        table = self._soup.find(name="table")
         if not table:
             raise CrawlError("Did not find questions table")
         result = []
@@ -251,16 +251,28 @@ class ExtendedIliasPage(IliasPage):
                 log.explain(f"Skipping row with single td: {row}")
                 continue
 
-            order_td = row.find(name="td", attrs={"name": lambda x: x is not None and x.startswith("order[")})
-            if not order_td:
-                alert_message = ""
-                for alert in self._soup.select(".alert"):
-                    alert_message += alert.getText().strip()
-                raise CrawlError(f"Could not find order column. Page-Alerts: {alert_message}")
-            question_id = cast(str, order_td["name"]).replace("order[", "").replace("]", "").strip()
-            result.append((question_id, row.find(name="a")))
+            order_input = row.find(
+                name="input",
+                attrs={"name": lambda x: x is not None and x.isdigit(), "type": "number"}
+            )
+            if not order_input:
+                raise CrawlError(f"Could not find order column. Page-Alerts: {self._get_all_alerts()}")
+            question_id = cast(str, order_input["name"]).strip()
+            val = row.find(name="a", attrs={"href": lambda x: x is not None and "cmd=showquestions" in x.lower()})
+            result.append((question_id, val))
 
         return result
+
+    def _get_all_alerts(self) -> Optional[str]:
+        alert_message = ""
+        for alert in self._soup.select(".alert"):
+            # Alerts in hidden dialogs do not matter
+            if alert.find_parent("dialog", attrs={"open": lambda x: x is None}):
+                continue
+            alert_message += alert.getText().strip()
+        if alert_message:
+            return alert_message
+        return None
 
     def get_test_question_save_order_data(self, question_to_position: dict[str, str]) -> tuple[str, dict[str, str]]:
         url, _, _ = self._form_target_from_button("cmd[saveOrderAndObligations]")
@@ -280,9 +292,11 @@ class ExtendedIliasPage(IliasPage):
         return result
 
     def get_test_question_edit_url(self):
-        return self._abs_url_from_link(
-            _(self._soup.find(name="a", attrs={"href": lambda x: x is not None and "cmd=editQuestion" in x}))
-        )
+        btn = _(self._soup.find(
+            name="button",
+            attrs={"data-action": lambda x: x is not None and "cmd=editquestion" in x.lower()}
+        ))
+        return self._abs_url_from_relative(__(btn.get("data-action")))
 
     def get_test_question_reconstruct_from_edit(self, page_design: list[PageDesignBlock]):
         if "cmd=editquestion" not in self.normalized_url():
@@ -464,8 +478,8 @@ class ExtendedIliasPage(IliasPage):
         title_elem = self._get_form_input_by_label_prefix("Titel*")
         description_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
         # intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
-        starting_time_elem = self._get_form_input_by_label_prefix("Start", ".il-section-input > .form-group > label")
-        ending_time_elem = self._get_form_input_by_label_prefix("Ende", ".il-section-input > .form-group > label")
+        starting_time_elem = self._get_form_input_by_label_prefix("Start", ".c-input__field .c-input__field .c-input label")
+        ending_time_elem = self._get_form_input_by_label_prefix("Ende", ".c-input__field .c-input__field .c-input label")
         number_of_tries_elem = self._get_form_input_by_label_prefix("Maximale Anzahl von Testdurchläufen")
         return IliasTest(
             title=_norm(__(title_elem.get("value", ""))),
