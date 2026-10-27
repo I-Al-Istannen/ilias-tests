@@ -320,7 +320,8 @@ class ExtendedIliasPage(IliasPage):
         url = self._form_target_from_form(_(self._soup.find(name="form", class_="c-table-ordering__form")))
         data = {}
         for question_id, value in question_to_position.items():
-            data[f"order[{question_id}]"] = value
+            # The ordering table submits each question ID as the input name.
+            data[question_id] = value
         log.explain(f"Setting order {data}")
         return url, data
 
