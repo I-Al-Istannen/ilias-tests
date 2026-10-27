@@ -134,7 +134,9 @@ class ExtendedIliasPage(IliasPage):
             )
         )
         title_name = __(_(self._get_form_input_by_label_prefix("Titel")).attrs["name"])
-        description_name = __(_(self._get_form_input_by_label_prefix("Zusammenfassung")).attrs["name"])
+        description_name = __(
+            _(self.get_form_input_from_label_path(re.compile(r"^(Zusammenfassung|Beschreibung)$"))).attrs["name"]
+        )
 
         return self._abs_url_from_relative(__(form["action"])), {
             title_name: title,
@@ -515,7 +517,9 @@ class ExtendedIliasPage(IliasPage):
 
     def get_test_reconstruct_from_properties(self, questions: list[TestQuestion]) -> IliasTest:
         title_elem = self._get_form_input_by_label_prefix("Titel*")
-        description_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
+        description_elem = self.get_form_input_from_label_path(
+            re.compile(r"^(Zusammenfassung|Beschreibung)$"), section_title="Einstellungen des Tests"
+        )
         # intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
         starting_time_elem = self._get_form_input_by_label_prefix(
             "Start", ".c-input__field .c-input__field .c-input label"

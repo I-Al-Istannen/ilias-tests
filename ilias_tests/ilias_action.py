@@ -153,7 +153,9 @@ class IliasInteractor:
         if human_name == "title":
             return self._translate_from_ilias(settings_page, "Titel", section_title="Einstellungen des Tests")
         elif human_name == "description":
-            return self._translate_from_ilias(settings_page, "Zusammenfassung", section_title="Einstellungen des Tests")
+            return self._translate_from_ilias(
+                settings_page, re.compile(r"^(Zusammenfassung|Beschreibung)$"), section_title="Einstellungen des Tests"
+            )
         elif human_name == "question_set_type":
             return self._translate_from_ilias(
                 settings_page,
