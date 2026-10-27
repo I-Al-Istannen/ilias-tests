@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib.php';
 
+use ILIAS\Filesystem\Stream\Streams;
 use ILIAS\Test\Results\Data\Repository;
 use ILIAS\Test\Results\Data\StatusOfAttempt;
 use ILIAS\TestQuestionPool\QuestionPoolDIC;
@@ -34,14 +35,19 @@ $sequence->saveToDb();
 $question_ids = array_map('intval', array_values($test->getQuestions()));
 foreach ($question_ids as $question_id) {
     $question = assQuestion::instantiateQuestion($question_id);
-    // Choice solutions store the order of each selected answer
-    [$values, $points] = match (true) {
-        $question instanceof assTextQuestion => [['My independently seeded answer.'], 1.5],
-        $question instanceof assSingleChoice => [[1], 2.0],
-        $question instanceof assMultipleChoice => [[0, 1], 1.0],
+    // Choice solutions store the order of each selected answer, uploads the stored resource
+    [$values, $value2, $points] = match (true) {
+        $question instanceof assTextQuestion => [['My independently seeded answer.'], null, 1.5],
+        $question instanceof assSingleChoice => [[1], null, 2.0],
+        $question instanceof assMultipleChoice => [[0, 1], null, 1.0],
+        $question instanceof assFileUpload => [[$DIC->resourceStorage()->manage()->stream(
+            Streams::ofString("int main(void) {\n    return 0;\n}\n"),
+            new assFileUploadStakeholder(),
+            'solution.c'
+        )->serialize()], 'rid', 0.5],
     };
     foreach ($values as $value) {
-        $question->saveCurrentSolution($active_id, 0, $value, null);
+        $question->saveCurrentSolution($active_id, 0, $value, $value2);
     }
     assQuestion::_setReachedPoints($active_id, $question_id, $points, $question->getMaximumPoints(), 0, true);
 }

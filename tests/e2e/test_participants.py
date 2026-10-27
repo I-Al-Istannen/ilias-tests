@@ -35,27 +35,66 @@ def test_results(
     assert answer["final_feedback"] is False
 
 
-def test_choice_results(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
-    choice = ilias.run_php("choice_test.php", str(workspace["course"]))
-    ilias.run_php("participant.php", str(choice["test"]), "finished")
-    target = url(ilias, choice["test"], "tst")
+def test_answer_types(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
+    seeded = ilias.run_php("answer_types.php", str(workspace["course"]))
+    participant = ilias.run_php("participant.php", str(seeded["test"]), "finished")
+    active_id = str(participant["active_id"])
+    target = url(ilias, seeded["test"], "tst")
     output = tmp_path / "results.json"
     run_cli("results", target, output)
     answers = {answer["question"]["id"]: answer for answer in json.loads(output.read_text())["test"][0]["answers"]}
-    single, multiple = answers[str(choice["single"])], answers[str(choice["multiple"])]
+    single, multiple, upload = (answers[str(seeded[key])] for key in ("single", "multiple", "upload"))
     assert single["question"]["question_type"] == "single_choice"
     assert single["answer"] == "<ul><li>No</li></ul>"
     assert single["points"] == 2.0
     assert multiple["question"]["question_type"] == "multiple_choice"
     assert multiple["answer"] == "<ul><li>First</li><li>Second</li></ul>"
     assert multiple["points"] == 1.0
+    assert upload["question"]["question_type"] == "file_upload"
+    assert [(file["file_name"], file["file_content"]) for file in upload["answer"]] == [
+        ("solution.c", "int main(void) {\n    return 0;\n}\n")
+    ]
+    assert upload["points"] == 0.5
 
     storage = tmp_path / "grading"
     run_cli("grading", target, storage, "--download-state")
-    assert "* No" in (storage / f"{choice['single']}.md").read_text()
-    content = (storage / f"{choice['multiple']}.md").read_text()
+    assert "* No" in (storage / f"{seeded['single']}.md").read_text()
+    content = (storage / f"{seeded['multiple']}.md").read_text()
     assert "* First\n* Second" in content
     assert "Third" not in content
+    assert "file_upload" in (storage / f"{seeded['upload']}.md").read_text()
+
+    grades = {"single": ("2.0", "1.0"), "multiple": ("1.0", "2.0"), "upload": ("0.5", "2.5")}
+    for key, (old, new) in grades.items():
+        markdown = storage / f"{seeded[key]}.md"
+        content = markdown.read_text()
+        maximum = content.split(f"### Answer {old} / ")[1].split("\n")[0]
+        markdown.write_text(
+            content.replace(f"### Answer {old} / {maximum}", f"### Answer {new} / {maximum}")
+            + f"Feedback for **{key}**.\n"
+        )
+    expected = {
+        str(seeded[key]): {
+            "points": float(new),
+            "feedback": f"<p>Feedback for <strong>{key}</strong>.</p>\n",
+            "final": False,
+        }
+        for key, (_, new) in grades.items()
+    }
+
+    run_cli("grading", target, storage, "--upload-state")
+    after = ilias.run_php("inspect_participant.php", active_id)
+    assert after["questions"] == expected
+    assert after["points"] == 5.5
+    assert after["grading_done"] is False
+    assert after["mails"] == []
+
+    run_cli("grading", target, storage, "--upload-state", "--mark-done", "--notify-users")
+    done = ilias.run_php("inspect_participant.php", active_id)
+    assert done["questions"] == expected
+    assert done["grading_done"] is True
+    # The notification is an internal ILIAS mail, so it does not leave the instance
+    assert done["mails"] == ["Manuelle Bewertung für Test „Answer Types“ erfolgt"]
 
 
 def test_grading_round_trip(
