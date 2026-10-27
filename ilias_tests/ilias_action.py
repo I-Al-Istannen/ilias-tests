@@ -624,7 +624,13 @@ class IliasInteractor:
     async def download_file_data(self, url: str) -> tuple[str, bytes] | None:
         async with self.session.get(url) as response:
             if 200 <= response.status < 300:
-                filename = response.headers.get("content-description", "")
+                disposition = response.content_disposition
+                filename = (
+                    response.headers.get("content-description")
+                    or (disposition.filename if disposition else None)
+                    or response.url.name
+                    or "download"
+                )
                 content = await response.read()
                 return filename, content
             else:
