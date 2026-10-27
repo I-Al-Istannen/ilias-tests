@@ -32,5 +32,13 @@ line-length = 120
 dev = [
     "pip>=25.2",
     "pyright>=1.1.406",
+    "pytest>=9.0",
+    "pytest-xdist>=3.8",
     "ruff>=0.14.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "e2e: end-to-end tests against a local ILIAS instance in Docker",
 ]

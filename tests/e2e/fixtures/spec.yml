@@ -1,0 +1,78 @@
+questions:
+  essay:
+    author: E2E Author
+    summary: A fixture question
+    page_design: []
+    type: freeform_text
+    title: Explain
+    question_html: <p>Explain your answer.</p>
+    points: 4.0
+  single:
+    author: E2E Author
+    summary: A fixture question
+    page_design: []
+    type: single_choice
+    title: Pick one
+    question_html: <p>Which answer is correct?</p>
+    shuffle: false
+    answers:
+    - answer: 'Yes'
+      points: 2.0
+    - answer: 'No'
+      points: 0.0
+  multiple:
+    author: E2E Author
+    summary: A fixture question
+    page_design: []
+    type: multiple_choice
+    title: Pick several
+    question_html: <p>Select the correct answers.</p>
+    shuffle: true
+    selection_limit: 2
+    answers:
+    - answer: First
+      points: 1.0
+      points_unchecked: 0.0
+    - answer: Second
+      points: 1.0
+      points_unchecked: 0.0
+    - answer: Wrong
+      points: -1.0
+      points_unchecked: 0.0
+  upload:
+    author: E2E Author
+    summary: A fixture question
+    page_design: []
+    type: file_upload
+    title: Upload
+    question_html: <p>Upload your solution.</p>
+    points: 5.0
+    allowed_filetypes:
+    - txt
+    - pdf
+    max_bytes: 1048576
+tests:
+  practice:
+    title: Practice
+    description: CLI round trip
+    intro_text: ''
+    starting_time: null
+    ending_time: null
+    number_of_tries: 2
+    questions:
+    - essay
+    - single
+    - multiple
+    - upload
+  ignored:
+    title: Not selected
+    description: CLI round trip
+    intro_text: ''
+    starting_time: null
+    ending_time: null
+    number_of_tries: 2
+    questions:
+    - essay
+    - single
+    - multiple
+    - upload
