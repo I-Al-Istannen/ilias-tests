@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -396,7 +396,7 @@ dev = [
 requires-dist = [
     { name = "markdown2", specifier = ">=2.5.1" },
     { name = "markdownify", specifier = ">=0.13.1" },
-    { name = "pferd", git = "https://github.com/garmelon/pferd?rev=ilias-10" },
+    { name = "pferd" },
     { name = "python-slugify" },
     { name = "pyyaml" },
 ]
@@ -664,13 +664,17 @@ wheels = [
 [[package]]
 name = "pferd"
 version = "3.8.3"
-source = { git = "https://github.com/garmelon/pferd?rev=ilias-10#446204f4d558b3e7c0a33e053744371643db92d2" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "beautifulsoup4" },
     { name = "certifi" },
     { name = "keyring" },
     { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2f/af/371337e0e06866d4efb36c1ab8e375736f1e2d7280544da130ef6687534b/pferd-3.8.3.tar.gz", hash = "sha256:0f2c4e582a885b2a1a88b9a896cfd0932e8f25db60b252c0957a6ffdd2085763", size = 70941, upload-time = "2025-07-01T12:47:11.814Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ac/90/057d262aacf925c059d705181e41799506d89472194bafac655e6a78833b/pferd-3.8.3-py3-none-any.whl", hash = "sha256:006c6ca4e23a052f74e1fb05929a1ab1f15544da5f504e6d0428b13d1aab37db", size = 84990, upload-time = "2025-07-01T12:47:10.554Z" },
 ]
 
 [[package]]
