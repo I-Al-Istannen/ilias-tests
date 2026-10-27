@@ -76,7 +76,11 @@ async def slurp_tests_from_folder(interactor: IliasInteractor, folder_url: str, 
                 continue
 
             log.explain_topic("Converting settings page to test")
-            tests.append(properties_page.get_test_reconstruct_from_properties(questions))
+            intro_text = ""
+            if properties_page.get_test_intro_enabled():
+                intro_page = await interactor.select_page(properties_page.get_intro_text_page_url())
+                intro_text = intro_page.get_test_intro_text()
+            tests.append(properties_page.get_test_reconstruct_from_properties(questions, intro_text=intro_text))
         else:
             log.explain(f"Skipping child ({child.name!r}) of wrong type {child.type!r}")
 

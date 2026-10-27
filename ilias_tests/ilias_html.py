@@ -516,12 +516,11 @@ class ExtendedIliasPage(IliasPage):
 
         return blocks
 
-    def get_test_reconstruct_from_properties(self, questions: list[TestQuestion]) -> IliasTest:
+    def get_test_reconstruct_from_properties(self, questions: list[TestQuestion], intro_text: str = "") -> IliasTest:
         title_elem = self._get_form_input_by_label_prefix("Titel*")
         description_elem = self.get_form_input_from_label_path(
             re.compile(r"^(Zusammenfassung|Beschreibung)$"), section_title="Einstellungen des Tests"
         )
-        # intro_elem = self._get_form_input_by_label_prefix("Zusammenfassung")
         starting_time_elem = self._get_form_input_by_label_prefix(
             "Start", ".c-input__field .c-input__field .c-input label"
         )
@@ -532,7 +531,7 @@ class ExtendedIliasPage(IliasPage):
         return IliasTest(
             title=_norm(__(title_elem.get("value", ""))),
             description=_norm("".join([str(x) for x in _(description_elem).contents])),
-            intro_text=_norm("".join([str(x) for x in _(description_elem).contents])),
+            intro_text=intro_text,
             starting_time=_parse_time(_(starting_time_elem)),
             ending_time=_parse_time(_(ending_time_elem)),
             number_of_tries=int(__(_(number_of_tries_elem).get("value", "100"))),
@@ -791,6 +790,20 @@ class ExtendedIliasPage(IliasPage):
 
     def get_test_dashboard_end_all_passes_confirm_url(self):
         return self._form_target_from_button("cmd[confirmFinishTestPassForAllUser]")[0]
+
+    def get_test_intro_enabled(self) -> bool:
+        field = self.get_form_input_from_label_path("Einleitung", section_title="Informationen zum Einstieg")
+        return field.has_attr("checked")
+
+    def get_test_intro_text(self) -> str:
+        page = self._soup.select_one("#ilCOPageContent .ilc_page_Page")
+        if page is None:
+            raise CrawlError("Could not find introduction page content")
+        paragraphs = []
+        for block in page.find_all(class_="ilc_Paragraph", recursive=False):
+            tag = block.name if block.name in ("h1", "h2", "h3") else "p"
+            paragraphs.append(f"<{tag}>{_normalize_tag_for_design_block(block)}</{tag}>")
+        return "".join(paragraphs)
 
     def get_intro_text_page_url(self) -> str:
         if link := self._soup.select_one("#subtab_edit_introduction a"):
