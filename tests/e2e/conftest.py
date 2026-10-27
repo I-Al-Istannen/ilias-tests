@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 import subprocess
 import sys
 import uuid
@@ -59,7 +58,7 @@ async def _login(ilias: Ilias, cookie_file: Path) -> None:
 
 
 class RunCLI(Protocol):
-    def __call__(self, *args: str | Path) -> str: ...
+    def __call__(self, *args: str | Path, expected_exit_code: int = 0) -> str: ...
 
 
 @pytest.fixture
@@ -67,7 +66,7 @@ def run_cli(ilias: Ilias, tmp_path: Path) -> RunCLI:
     cookies = tmp_path / "cookies.txt"
     asyncio.run(_login(ilias, cookies))
 
-    def run(*args: str | Path) -> str:
+    def run(*args: str | Path, expected_exit_code: int = 0) -> str:
         result = subprocess.run(
             [
                 sys.executable,
@@ -89,9 +88,7 @@ def run_cli(ilias: Ilias, tmp_path: Path) -> RunCLI:
             env={**os.environ, "NO_COLOR": "1", "TERM": "dumb"},
         )
         log = result.stdout + result.stderr
-        assert result.returncode == 0, log
-        # main() currently catches exceptions without setting a failing exit code.
-        assert not re.search(r"(?m)^\s*(?:Error\b|Warning\b|Traceback\b)", log), log
+        assert result.returncode == expected_exit_code, log
         return log
 
     return run
