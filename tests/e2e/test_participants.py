@@ -146,3 +146,22 @@ def test_end_open_pass(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI)
     assert ilias.run_php("inspect_participant.php", str(finished["active_id"])) == finished_before
     log = run_cli("passes", url(ilias, workspace["test"], "tst"), "--end-passes")
     assert "No active test passes to end" in log
+
+
+def test_replicate_results_and_passes(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
+    seeded = ilias.run_php("answer_types.php", str(workspace["course"]))
+    tests = {"Source/Seeded Test": workspace["test"], "Answer Types/Answer Types": seeded["test"]}
+    participants = {path: ilias.run_php("participant.php", str(ref), "open") for path, ref in tests.items()}
+    course = url(ilias, workspace["course"], "crs")
+    selector = "(Source|Answer Types)/.*"
+
+    run_cli("passes", course, "--replicate", selector, "--end-passes")
+    for participant in participants.values():
+        assert ilias.run_php("inspect_participant.php", str(participant["active_id"]))["submitted"] is True
+
+    output = tmp_path / "results.json"
+    run_cli("results", course, output, "--replicate", selector)
+    results = json.loads(output.read_text())
+    assert sorted(results) == sorted(tests)
+    for path, participant in participants.items():
+        assert [result["participant"]["email"] for result in results[path]] == [participant["email"]]
