@@ -521,12 +521,9 @@ class ExtendedIliasPage(IliasPage):
         description_elem = self.get_form_input_from_label_path(
             re.compile(r"^(Zusammenfassung|Beschreibung)$"), section_title="Einstellungen des Tests"
         )
-        starting_time_elem = self._get_form_input_by_label_prefix(
-            "Start", ".c-input__field .c-input__field .c-input label"
-        )
-        ending_time_elem = self._get_form_input_by_label_prefix(
-            "Ende", ".c-input__field .c-input__field .c-input label"
-        )
+        # The availability period above uses the same labels, so select the test's access section
+        starting_time_elem = self.get_form_input_from_label_path("Start", section_title="Durchführung: Zugang")
+        ending_time_elem = self.get_form_input_from_label_path("Ende", section_title="Durchführung: Zugang")
         number_of_tries_elem = self._get_form_input_by_label_prefix("Maximale Anzahl von Testdurchläufen")
         return IliasTest(
             title=_norm(__(title_elem.get("value", ""))),
