@@ -411,7 +411,7 @@ class IliasInteractor:
             "(Nach Durchlauf des Tests)|(After Test Attempt Is Finished)": "1",
             "(.Bestanden. / .Nicht bestanden. anzeigen)|(Show .Passed. / .Failed. Status)": "checked",
             "(Note anzeigen)|(Show Grade)": "checked",
-            "(Detaillierte Testergebnisse anzeigen)|(Show detailed test results)": "checked",
+            "(Detaillierte Testergebnisse (anzeigen|zugänglich machen))|(Show detailed test results)": "checked",
             "(Bewertete Antworten als Liste)|(Scored Answers of Participant)": "checked",
             "(Bewertete Antworten auf Einzelseiten)|(Scored Answers on single pages)": "checked",
             "(Bestmögliche Lösung)|(Best Solution)": "checked",
