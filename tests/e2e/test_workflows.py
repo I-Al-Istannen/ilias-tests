@@ -31,6 +31,13 @@ def test_slurp_seeded_test(ilias: Ilias, workspace: dict[str, int], run_cli: Run
     assert "Explain your answer." in question["question_html"]
 
 
+def test_slurp_test_with_participants(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
+    # ILIAS refuses to show the question settings once a test has participant data. Its alert explains why.
+    ilias.run_php("participant.php", str(workspace["test"]), "finished")
+    log = run_cli("slurp", url(ilias, workspace["source"]), tmp_path / "export", expected_exit_code=1)
+    assert "Der Test enthält bereits Teilnehmerdatensätze" in " ".join(log.split())
+
+
 def test_slurp_empty_folder(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
     output = tmp_path / "nested" / "export"
     run_cli("slurp", url(ilias, workspace["target"]), output)
