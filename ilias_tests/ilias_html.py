@@ -797,6 +797,10 @@ def _norm(inpt: str) -> str:
     return inpt.strip().replace("\u00a0", " ").replace("\r\n", "\n")
 
 
+def normalize_page_design_html(html: str) -> str:
+    return _normalize_tag_for_design_block(soupify(html.encode("utf-8")))
+
+
 def _normalize_tag_for_design_block(element: bs4.Tag):
     # remove class from <code> as ILIAS crashes otherwise
     for elem in element.find_all(name="code"):

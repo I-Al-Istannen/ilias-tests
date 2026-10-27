@@ -24,7 +24,7 @@ from PFERD.crawl.ilias.shibboleth_login import ShibbolethLogin
 from PFERD.logging import log
 from PFERD.utils import fmt_path, soupify
 
-from .ilias_html import ExtendedIliasPage, random_ilfilehash
+from .ilias_html import ExtendedIliasPage, normalize_page_design_html, random_ilfilehash
 from .spec import (
     ManualGradingParticipantResults,
     PageDesignBlock,
@@ -519,7 +519,7 @@ class IliasInteractor:
                 "data": {
                     "after_pcid": after_id,
                     "pcid": new_id,
-                    "content": block.text_html,
+                    "content": normalize_page_design_html(block.text_html),
                     "characteristic": block.characteristic.value,
                     "fromPlaceholder": False,
                 },
