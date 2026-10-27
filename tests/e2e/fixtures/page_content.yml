@@ -1,0 +1,32 @@
+questions:
+  essay:
+    type: freeform_text
+    title: Explain the example
+    author: E2E Author
+    summary: A question with additional page content
+    question_html: <p>What does this program do?</p>
+    points: 4.0
+    page_design:
+      - type: text
+        text: 'Read <strong>carefully</strong> and <em>explain</em> <code class="language-c">x &lt; 3</code>.<!-- editor comment -->'
+      - type: code
+        code: |-
+          int main(void) {
+              return 2 < 3 && 4 > 1;
+          }
+        language: c
+        name: example.c
+      - type: image
+        path: diagram.png
+      - type: text
+        text: This paragraph belongs after the image.
+tests:
+  rich:
+    title: Page content
+    description: This description is not the introduction.
+    intro_text: |-
+      <h1>Before you begin</h1><p>Read <strong>these instructions</strong> &amp; explain <em>why</em>.</p>
+    starting_time: null
+    ending_time: null
+    number_of_tries: 2
+    questions: [essay]

@@ -51,6 +51,7 @@ def test_create_and_export(ilias: Ilias, workspace: dict[str, int], run_cli: Run
     assert len(exported) == 1
     assert exported[0].title == original.title
     assert exported[0].description == original.description
+    assert exported[0].intro_text == original.intro_text
     assert exported[0].number_of_tries == original.number_of_tries
     assert [q.serialize() for q in exported[0].questions] == [q.serialize() for q in original.questions]
 
