@@ -35,6 +35,29 @@ def test_results(
     assert answer["final_feedback"] is False
 
 
+def test_choice_results(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
+    choice = ilias.run_php("choice_test.php", str(workspace["course"]))
+    ilias.run_php("participant.php", str(choice["test"]), "finished")
+    target = url(ilias, choice["test"], "tst")
+    output = tmp_path / "results.json"
+    run_cli("results", target, output)
+    answers = {answer["question"]["id"]: answer for answer in json.loads(output.read_text())["test"][0]["answers"]}
+    single, multiple = answers[str(choice["single"])], answers[str(choice["multiple"])]
+    assert single["question"]["question_type"] == "single_choice"
+    assert single["answer"] == "<ul><li>No</li></ul>"
+    assert single["points"] == 2.0
+    assert multiple["question"]["question_type"] == "multiple_choice"
+    assert multiple["answer"] == "<ul><li>First</li><li>Second</li></ul>"
+    assert multiple["points"] == 1.0
+
+    storage = tmp_path / "grading"
+    run_cli("grading", target, storage, "--download-state")
+    assert "* No" in (storage / f"{choice['single']}.md").read_text()
+    content = (storage / f"{choice['multiple']}.md").read_text()
+    assert "* First\n* Second" in content
+    assert "Third" not in content
+
+
 def test_grading_round_trip(
     ilias: Ilias, workspace: dict[str, int], finished_participant: dict[str, Any], run_cli: RunCLI, tmp_path: Path
 ) -> None:

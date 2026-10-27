@@ -29,12 +29,23 @@ $sequence = new ilTestSequenceFixedQuestionSet(
     $DIC->database(), $active_id, 0, QuestionPoolDIC::dic()['question.general_properties.repository']
 );
 $sequence->loadQuestions();
-$sequence->createNewSequence(1, false);
+$sequence->createNewSequence(count($test->getQuestions()), false);
 $sequence->saveToDb();
-$question_id = (int) array_values($test->getQuestions())[0];
-$question = assQuestion::instantiateQuestion($question_id);
-$question->saveCurrentSolution($active_id, 0, 'My independently seeded answer.', null);
-assQuestion::_setReachedPoints($active_id, $question_id, 1.5, 4.0, 0, true);
+$question_ids = array_map('intval', array_values($test->getQuestions()));
+foreach ($question_ids as $question_id) {
+    $question = assQuestion::instantiateQuestion($question_id);
+    // Choice solutions store the order of each selected answer
+    [$values, $points] = match (true) {
+        $question instanceof assTextQuestion => [['My independently seeded answer.'], 1.5],
+        $question instanceof assSingleChoice => [[1], 2.0],
+        $question instanceof assMultipleChoice => [[0, 1], 1.0],
+    };
+    foreach ($values as $value) {
+        $question->saveCurrentSolution($active_id, 0, $value, null);
+    }
+    assQuestion::_setReachedPoints($active_id, $question_id, $points, $question->getMaximumPoints(), 0, true);
+}
+$question_id = $question_ids[0];
 $test->updateTestPassResults($active_id, 0);
 
 if ($argv[2] === 'finished') {

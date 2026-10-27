@@ -683,9 +683,10 @@ class ExtendedIliasPage(IliasPage):
         for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):  # type: ignore
             match = re.compile(r"\[ID: (\d+)]").search(question.getText())
             question_id = match.group(1)  # type: ignore
-            answer_type, answer_value = self._get_manual_grading_participant_answer(
-                _(question.find_next(id="il_prop_cont_"))
-            )  # type: ignore
+            answer = self._get_manual_grading_participant_answer(_(question.find_next(id="il_prop_cont_")))
+            if answer is None:
+                raise CrawlError(f"Unsupported answer type for question {question.getText().strip()!r}")
+            answer_type, answer_value = answer
             points = _(self._soup.select_one(f"#il_prop_cont_question__{question_id}__points input")).get("value", "0")
             max_points = _(self._soup.select_one(f"#question__{question_id}__maxpoints")).getText().strip()
             feedback_element = _(self._soup.select_one(f"[name=question__{question_id}__feedback]"))
@@ -727,6 +728,20 @@ class ExtendedIliasPage(IliasPage):
         elif file_answer := user_answer.select_one(".ilc_question_FileUpload"):
             downloadables = [(file.getText().strip(), __(file["href"])) for file in file_answer.select('[download=""]')]
             return "file_upload", [ProgrammingQuestionAnswer(name, uri) for name, uri in downloadables]
+        choice_types: list[tuple[str, ManualGradingQuestionType]] = [
+            ("ilc_question_SingleChoice", "single_choice"),
+            ("ilc_question_MultipleChoice", "multiple_choice"),
+        ]
+        for css_class, answer_type in choice_types:
+            if choice_answer := user_answer.select_one(f".{css_class}"):
+                # Each option shows a checked or unchecked radio button/checkbox image
+                selected = []
+                for option in choice_answer.select(".ilc_qanswer_Answer"):
+                    image = option.select_one("img.ilc_solution_image")
+                    text = option.select_one(".answertext")
+                    if image and text and re.search(r"_checked\.\w+$", __(image.get("src", ""))):
+                        selected.append(f"<li>{text.decode_contents().strip()}</li>")
+                return answer_type, f"<ul>{''.join(selected)}</ul>"
         return None
 
     def get_manual_grading_save_url(self):
