@@ -118,3 +118,48 @@ def test_dates_and_online_switch(ilias: Ilias, workspace: dict[str, int], run_cl
     for option, online in [("--publish", True), ("--unpublish", False)]:
         run_cli("configure", url(ilias, workspace["target"]), "--replicate", "Dated", option)
         check(online)
+
+
+def test_configure_keeps_settings(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, tmp_path: Path) -> None:
+    test = load_spec_from_file(Path(__file__).parent / "fixtures" / "page_content.yml").tests[0]
+    test.title = "Configured"
+    test.number_of_tries = 3
+    test.starting_time = datetime.datetime(2030, 1, 2, 8, 15)
+    test.ending_time = datetime.datetime(2030, 7, 9, 23, 45)
+    # Only the settings matter here, the page content has its own round trip test
+    test.questions[0].page_design = []
+    spec = tmp_path / "configured.yml"
+    spec.write_text(dump_tests_to_yml([test]))
+    run_cli("create", spec, url(ilias, workspace["target"]), "--replicate", "")
+    [ref] = ilias.run_php("children.php", str(workspace["target"]))
+
+    created = ilias.run_php("inspect_settings.php", str(ref))
+    assert created == {
+        "title": "Configured",
+        "description": "This description is not the introduction.",
+        "online": False,
+        "availability": False,
+        "question_set_type": "FIXED_QUEST_SET",
+        "anonymity": False,
+        "intro_enabled": True,
+        "intro_text": "Before you begin Read these instructions &amp; explain why .",
+        "start": "2030-01-02 07:15",
+        "end": "2030-07-09 21:45",
+        "number_of_tries": 3,
+        "title_output": 0,
+        "lock_answer_on_feedback": False,
+        "lock_answer_on_next": False,
+        "autosave": False,
+        "use_previous_answers": True,
+        "suspend": True,
+        "postponed_to_end": False,
+        "question_list": True,
+        "pass_overview": True,
+        "pass_overview_at_end": True,
+        "pass_overview_descriptions": True,
+        "question_marking": False,
+        "answer_overview": True,
+    }
+    for option, online in [("--publish", True), ("--unpublish", False), ("--fix-result-viewing", False)]:
+        run_cli("configure", url(ilias, ref, "tst"), option)
+        assert ilias.run_php("inspect_settings.php", str(ref)) == {**created, "online": online}, option
