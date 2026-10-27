@@ -64,3 +64,21 @@ def test_publish_and_unpublish(ilias: Ilias, workspace: dict[str, int], run_cli:
         assert ilias.run_php("inspect.php", str(workspace["source"])) == [
             {"title": "Seeded Test", "online": online, "questions": 1}
         ]
+
+
+def test_fix_result_viewing(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI) -> None:
+    before = ilias.run_php("scoring.php", str(workspace["test"]), "reset")
+    assert before == {key: 0 if key == "reporting" else False for key in before}
+    run_cli("configure", url(ilias, workspace["test"], "tst"), "--fix-result-viewing")
+    after = ilias.run_php("scoring.php", str(workspace["test"]))
+    assert after == {
+        "reporting": 1,
+        "grade": True,
+        "passed": True,
+        "details": True,
+        "printview": True,
+        "feedback": True,
+        "hide_page_contents": False,
+        "suggested_content": False,
+        "best_solution": True,
+    }
