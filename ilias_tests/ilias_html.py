@@ -172,6 +172,30 @@ class ExtendedIliasPage(IliasPage):
         extra_values = self._get_extra_form_values(form)
         return self._abs_url_from_relative(__(form["action"])), extra_values
 
+    def get_test_settings_current_values(self) -> tuple[str, list[tuple[str, str]]]:
+        """Returns the settings form's target and the values a browser would submit without changes."""
+        form = self._soup.select_one("form.c-form")
+        if not form:
+            raise CrawlError("Could not find properties page. Is this a settings page?")
+
+        values = []
+        for element in form.find_all(name=["input", "select", "textarea"]):
+            name = element.get("name")
+            if not name or element.has_attr("disabled"):
+                continue
+            if element.name == "select":
+                values.extend(
+                    (name, __(option.get("value", ""))) for option in element.find_all("option", selected=True)
+                )
+            elif element.name == "textarea":
+                values.append((name, element.get_text()))
+            elif element.get("type") in ("checkbox", "radio"):
+                if element.has_attr("checked"):
+                    values.append((name, __(element.get("value", "on"))))
+            elif element.get("type") not in ("file", "submit", "button", "reset", "image"):
+                values.append((name, __(element.get("value", ""))))
+        return self._abs_url_from_relative(__(form["action"])), values
+
     def get_test_add_question_url(self):
         """Add a question to a test."""
         button = self._soup.find(attrs={"onclick": lambda x: x is not None and "cmd=createQuestionForm" in x})

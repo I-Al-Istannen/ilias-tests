@@ -306,7 +306,6 @@ class IliasInteractor:
         ending_time: Optional[datetime.datetime],
         number_of_tries: int,
         show_intro_text: bool,
-        online: bool = False,
     ) -> ExtendedIliasPage:
         """Configures the base test properties."""
         log.explain_topic(f"Configuring test {title}")
@@ -317,7 +316,6 @@ class IliasInteractor:
             "anonymity": "0",
         }
         activation_params = {
-            "online": "checked" if online else None,
             "access_period[start]": _format_time(datetime.datetime.now()),  # start of it
             "access_period[end]": _format_time(datetime.datetime.now()),  # end of it
             "activation_visibility": "checked",  # always visible, but not take-able
@@ -390,6 +388,24 @@ class IliasInteractor:
                 content_type="application/octet-stream",
                 filename="",
             )
+            return form_data
+
+        return await self._post_authenticated(url=url, data=build_form_data)
+
+    async def set_test_online(self, settings_page: ExtendedIliasPage, online: bool) -> ExtendedIliasPage:
+        """Changes only the online status, submitting all other settings unchanged."""
+        log.explain_topic(f"Setting test {'online' if online else 'offline'}")
+        url, values = settings_page.get_test_settings_current_values()
+        online_name = self._translate(settings_page, "online")
+        values = [(name, value) for name, value in values if name != online_name]
+        if online:
+            values.append((online_name, "checked"))
+
+        def build_form_data():
+            form_data = aiohttp.FormData()
+            for name, value in values:
+                form_data.add_field(name, value)
+            form_data.add_field(name="tile_image", value=b"", content_type="application/octet-stream", filename="")
             return form_data
 
         return await self._post_authenticated(url=url, data=build_form_data)

@@ -61,11 +61,14 @@ def test_create_and_export(ilias: Ilias, workspace: dict[str, int], run_cli: Run
 def test_publish_and_unpublish(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI, replicate: bool) -> None:
     target = url(ilias, workspace["source"]) if replicate else url(ilias, workspace["test"], "tst")
     options = ["--replicate", "Seeded Test"] if replicate else []
+    # The seeded test was not created by the CLI, so its settings differ from the CLI's defaults
+    settings = ilias.run_php("inspect_settings.php", str(workspace["test"]))
     for option, online in [("--unpublish", False), ("--publish", True)]:
         run_cli("configure", target, option, *options)
         assert ilias.run_php("inspect.php", str(workspace["source"])) == [
             {"title": "Seeded Test", "online": online, "questions": 1}
         ]
+        assert ilias.run_php("inspect_settings.php", str(workspace["test"])) == {**settings, "online": online}
 
 
 def test_fix_result_viewing(ilias: Ilias, workspace: dict[str, int], run_cli: RunCLI) -> None:

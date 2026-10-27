@@ -152,17 +152,7 @@ async def run_configure(interactor: IliasInteractor, args: argparse.Namespace):
 
         if args.publish or args.unpublish:
             log.status("[cyan]", "Configure", f"    {'Unpublishing' if args.unpublish else 'Publishing'} Test")
-            test = tab.get_test_reconstruct_from_properties([])
-            await interactor.configure_test(
-                settings_page=tab,
-                title=test.title,
-                description=test.description,
-                starting_time=test.starting_time,
-                ending_time=test.ending_time,
-                number_of_tries=test.number_of_tries,
-                show_intro_text=tab.get_test_intro_enabled(),
-                online=args.publish is True,
-            )
+            await interactor.set_test_online(tab, online=args.publish is True)
         if args.fix_result_viewing:
             log.status("[cyan]", "Configure", "    Fixing result viewing")
             await interactor.configure_test_scoring(tab)
