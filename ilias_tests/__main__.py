@@ -366,10 +366,13 @@ def main():
         asyncio.run(run())
     except KeyboardInterrupt:
         log.explain_topic("Interrupted, exiting immediately")
+        sys.exit(130)
     except CrawlError as e:
         log.error("      " + str(e))
+        sys.exit(1)
     except Exception:
         log.unexpected_exception()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
