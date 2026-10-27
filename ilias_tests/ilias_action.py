@@ -642,6 +642,16 @@ class IliasInteractor:
 
     async def end_all_user_passes(self, test_page: ExtendedIliasPage, indent: str = ""):
         dashboard = await self.select_tab(test_page, TestTab.PARTICIPANTS)
+        if submit_url := dashboard.get_test_dashboard_end_all_passes_submit_url():
+            page = await self._post_authenticated(
+                submit_url,
+                data={},
+                soup_succeeded=lambda pg: pg.test_dashboard_has_no_active_passes()
+                or ExtendedIliasPage.page_has_success_alert(pg),
+            )
+            if page.test_dashboard_has_no_active_passes():
+                log.warn(f"{indent}No active test passes to end")
+            return
         url = dashboard.get_test_dashboard_end_all_passes_url()
 
         if not url:

@@ -763,6 +763,32 @@ class ExtendedIliasPage(IliasPage):
             return None
         return self._abs_url_from_relative(__(link.get("data-action")))
 
+    def get_test_dashboard_end_all_passes_submit_url(self) -> Optional[str]:
+        # Newer ILIAS versions register this table action in JavaScript instead
+        # of rendering a link. Use its URL with the same selection as "all objects".
+        for script in self._soup.find_all("script"):
+            for url in re.findall(r'new URL\("([^"]+)"\)', script.get_text()):
+                parts = urllib.parse.urlsplit(url)
+                query = urllib.parse.parse_qs(parts.query, keep_blank_values=True)
+                if query.get("pt_action") != ["finish_test"]:
+                    continue
+                query["pt_p_id"] = ["ALL_OBJECTS"]
+                query["pt_action_type"] = ["submitTableAction"]
+                # Request the full page so the normal success/error alerts are available.
+                query.pop("cmdMode", None)
+                return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query, doseq=True)))
+        return None
+
+    def test_dashboard_has_no_active_passes(self) -> bool:
+        alerts = self._get_all_alerts() or ""
+        return any(
+            message in alerts
+            for message in (
+                "Es wurden keine gültigen Teilnehmer für diese Aktion ausgewählt.",
+                "No valid Participants selected.",
+            )
+        )
+
     def get_test_dashboard_end_all_passes_confirm_url(self):
         return self._form_target_from_button("cmd[confirmFinishTestPassForAllUser]")[0]
 
