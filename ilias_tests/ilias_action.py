@@ -572,52 +572,25 @@ class IliasInteractor:
         self, edit_page: ExtendedIliasPage, code: str, language: str, file_name: str, after_id: str
     ) -> str:
         log.explain(f"Adding code block after {after_id}")
-        _, post_url = edit_page.get_test_question_design_post_url()
-
-        next_stage_page = await self._post_authenticated(
-            url=post_url,
-            data={
-                "cmd": "insert",
-                "ctype": "src",
-                "pcid": after_id,
-                "hier_id": "pg",
-                "pluginname": "",
-                "cmd[insert]": "-",
-            },
-            soup_succeeded=lambda pg: "cmdclass=ilpageeditorgui" in pg.normalized_url(),
-        )
-        log.explain("Completed first stage")
-
-        post_url = next_stage_page.get_test_question_design_code_submit_url()
-        post_data = {
-            "par_language": "de",
-            "par_subcharacteristic": language,
-            "par_showlinenumbers": "1",
-            "par_content": code,
-            "par_downloadtitle": file_name,
-            "ilfilehash": random_ilfilehash(),
-            "cmd[create_src]": "Speichern",
-            "userfile": Path(""),
+        post_url, _ = edit_page.get_test_question_design_post_url()
+        new_id = "".join(str(randint(0, 9)) for _ in range(20))
+        data = {
+            "component": "SourceCode",
+            "pcid": new_id,
+            "form/input_0": "manual",
+            "form/input_1": file_name,
+            "form/input_2": language,
+            "form/input_3": "checked",
         }
-
-        def build_form_data():
-            form_data = aiohttp.FormData()
-            for post_key, post_val in post_data.items():
-                if isinstance(post_val, Path):
-                    form_data.add_field(name=post_key, value=b"", content_type="application/octet-stream", filename="")
-                else:
-                    form_data.add_field(post_key, post_val)
-
-            return form_data
-
-        page = await self._post_authenticated(
-            url=post_url,
-            data=build_form_data,
-            soup_succeeded=lambda pg: "cmdclass=ilassquestionpagegui" in pg.normalized_url(),
-        )
-
-        new_id = page.get_test_question_design_last_component_id()
-        log.explain(f"Created block has id {new_id}")
+        # The current editor creates the component first, then saves its text.
+        for action in ("insert", "update"):
+            response = await self._post_authenticated_json(
+                post_url,
+                {**data, "action": action, "after_pcid": after_id, "code": code},
+                as_form=True,
+            )
+            if response.get("error"):
+                raise CrawlError(f"Adding code block failed with: {response['error']!r}")
         return new_id
 
     # returns data
@@ -814,13 +787,16 @@ class IliasInteractor:
         raise CrawlError("post_authenticated failed even after authenticating")
 
     @_iorepeat(attempts=2, name="post authenticated json", failure_is_error=True)
-    async def _post_authenticated_json(self, url: str, data: Any) -> Any:
+    async def _post_authenticated_json(self, url: str, data: Any, *, as_form: bool = False) -> Any:
         log.explain(f"Sending post json data to {url}")
         auth_id = await self._current_auth_id()
 
         async def do_request():
             async with self.session.post(
-                url, data=json.dumps(data), allow_redirects=True, headers={"Content-Type": "application/json"}
+                url,
+                data=data if as_form else json.dumps(data),
+                allow_redirects=True,
+                headers={} if as_form else {"Content-Type": "application/json"},
             ) as response:
                 log.explain_topic("Checking response")
                 if 200 <= response.status < 300:
