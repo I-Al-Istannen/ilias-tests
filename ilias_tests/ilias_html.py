@@ -599,7 +599,7 @@ class ExtendedIliasPage(IliasPage):
         raise CrawlError(f"Could not find label with match {label_match!r}")
 
     def get_test_question_design_last_component_id(self) -> str:
-        editor = self._soup.find(id="ilEditorTD")
+        editor = self._soup.find(id="ilEditorTD") or self._soup.find(id="il-edit-cont")
         if not editor:
             raise CrawlError("Could not find editor")
         candidates: list[bs4.Tag] = list(editor.find_all(name="div", id=lambda x: x is not None and x.startswith("pc")))
