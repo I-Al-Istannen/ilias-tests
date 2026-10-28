@@ -37,10 +37,10 @@ class QuestionType(Enum):
 
 
 class TestTab(Enum):
-    SETTINGS = ("Settings", "Einstellungen")
-    PARTICIPANTS = ("Participants", "Teilnehmer")
-    QUESTIONS = ("Questions", "Fragen")
-    MANUAL_GRADING = ("", "Manuelle Bewertung")
+    SETTINGS = "Einstellungen"
+    PARTICIPANTS = "Teilnehmer"
+    QUESTIONS = "Fragen"
+    MANUAL_GRADING = "Manuelle Bewertung"
 
 
 def str_presenter(dumper, data):

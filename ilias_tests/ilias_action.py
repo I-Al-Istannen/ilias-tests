@@ -129,7 +129,7 @@ class IliasInteractor:
     async def select_tab(self, page: ExtendedIliasPage, target_tab: TestTab):
         log.explain_topic(f"Selecting tab {target_tab.name.lower()}")
         for name, url in page.get_test_tabs().items():
-            if name in target_tab.value:
+            if name == target_tab.value:
                 return await self.select_page(url)
         raise CrawlError(f"Could not find a match for tab {target_tab.name} in {page.get_test_tabs()}")
 
@@ -419,18 +419,18 @@ class IliasInteractor:
 
         url, extra_data = page.get_test_scoring_settings_change_data()
         label_values = {
-            "(.*falsch beantwortete Fragen ergeben.*)|(.*Incomplete or Partially Incorrect.*)": "0",
-            "(.*nie weniger als 0 Punkte sein)|(.*Cannot Score Negative Points.*)": "0",
-            "(Letzten Durchlauf des Tests bewerten)|(Score the Last Attempt)": "0",
-            "(Eigenes Testergebnis einsehen)|(Access to Test Results)": "checked",
-            "(Nach Durchlauf des Tests)|(After Test Attempt Is Finished)": "1",
-            "(.Bestanden. / .Nicht bestanden. anzeigen)|(Show .Passed. / .Failed. Status)": "checked",
-            "(Note anzeigen)|(Show Grade)": "checked",
-            "(Detaillierte Testergebnisse (anzeigen|zugänglich machen))|(Show detailed test results)": "checked",
-            "(Bestmögliche Lösung)|(Best Solution)": "checked",
-            "(Rückmeldungen)|(Feedback)": "checked",
-            "(Druckbare Liste der Antworten)|(Additional .List of Answers. for Printing)": "checked",
-            "(Länge der Bestenliste)|(Length of Top Ranking)": "0",  # not used, but required
+            ".*falsch beantwortete Fragen ergeben.*": "0",
+            ".*nie weniger als 0 Punkte sein": "0",
+            "Letzten Durchlauf des Tests bewerten": "0",
+            "Eigenes Testergebnis einsehen": "checked",
+            "Nach Durchlauf des Tests": "1",
+            ".Bestanden. / .Nicht bestanden. anzeigen": "checked",
+            "Note anzeigen": "checked",
+            "Detaillierte Testergebnisse (anzeigen|zugänglich machen)": "checked",
+            "Bestmögliche Lösung": "checked",
+            "Rückmeldungen": "checked",
+            "Druckbare Liste der Antworten": "checked",
+            "Länge der Bestenliste": "0",  # not used, but required
         }
         post_data = {}
 

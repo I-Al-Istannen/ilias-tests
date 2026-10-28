@@ -791,14 +791,7 @@ class ExtendedIliasPage(IliasPage):
         raise CrawlError("Could not find the 'Test beenden' action on the participants page")
 
     def test_dashboard_has_no_active_passes(self) -> bool:
-        alerts = self._get_all_alerts() or ""
-        return any(
-            message in alerts
-            for message in (
-                "Es wurden keine gültigen Teilnehmer für diese Aktion ausgewählt.",
-                "No valid Participants selected.",
-            )
-        )
+        return "Es wurden keine gültigen Teilnehmer für diese Aktion ausgewählt." in (self._get_all_alerts() or "")
 
     def get_test_intro_enabled(self) -> bool:
         field = self.get_form_input_from_label_path("Einleitung", section_title="Informationen zum Einstieg")
