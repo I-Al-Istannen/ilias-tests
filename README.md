@@ -11,8 +11,21 @@ parts of this process. It is based on the ilias comprehension of
 [PFERD](https://github.com/Garmelon/PFERD).
 
 ## Running ilias-tests
-This project includes a `pyproject.toml`. You can install it using
+You can run it directly from GitHub with [uv](https://docs.astral.sh/uv/):
+```
+uv run --with git+https://github.com/I-Al-Istannen/ilias-tests@master ilias-tests --help
+```
+
+To install it as a command line tool, use
+```
+uv tool install git+https://github.com/I-Al-Istannen/ilias-tests@master
+```
+
+To install it into an existing environment or project, use
 ```
 pip install git+https://github.com/I-Al-Istannen/ilias-tests@master
+# or
+uv add git+https://github.com/I-Al-Istannen/ilias-tests@master
 ```
-and then execute `ilias-tests --help` to view the usage.
+
+Afterwards, execute `ilias-tests --help` to view the usage.
