@@ -619,7 +619,7 @@ class ExtendedIliasPage(IliasPage):
         raise CrawlError(f"Could not find label with match {label_match!r}")
 
     def get_test_question_design_last_component_id(self) -> str:
-        editor = self._soup.find(id="ilEditorTD") or self._soup.find(id="il-edit-cont")
+        editor = self._soup.find(id="il-edit-cont")
         if not editor:
             raise CrawlError("Could not find editor")
         candidates: list[bs4.Tag] = list(editor.find_all(name="div", id=lambda x: x is not None and x.startswith("pc")))
@@ -790,17 +790,9 @@ class ExtendedIliasPage(IliasPage):
                 has_danger_alert = True
         return has_danger_alert
 
-    def get_test_dashboard_end_all_passes_url(self) -> Optional[str]:
-        link = self._soup.find(
-            name="button", attrs={"data-action": lambda x: x is not None and "cmd=finishalluserpasses" in x.lower()}
-        )
-        if not link:
-            return None
-        return self._abs_url_from_relative(__(link.get("data-action")))
-
-    def get_test_dashboard_end_all_passes_submit_url(self) -> Optional[str]:
-        # Newer ILIAS versions register this table action in JavaScript instead
-        # of rendering a link. Use its URL with the same selection as "all objects".
+    def get_test_dashboard_end_all_passes_submit_url(self) -> str:
+        # ILIAS registers this table action in JavaScript instead of rendering a link.
+        # Use its URL with the same selection as "all objects".
         for script in self._soup.find_all("script"):
             for url in re.findall(r'new URL\("([^"]+)"\)', script.get_text()):
                 parts = urllib.parse.urlsplit(url)
@@ -812,7 +804,7 @@ class ExtendedIliasPage(IliasPage):
                 # Request the full page so the normal success/error alerts are available.
                 query.pop("cmdMode", None)
                 return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query, doseq=True)))
-        return None
+        raise CrawlError("Could not find the 'Test beenden' action on the participants page")
 
     def test_dashboard_has_no_active_passes(self) -> bool:
         alerts = self._get_all_alerts() or ""
@@ -823,9 +815,6 @@ class ExtendedIliasPage(IliasPage):
                 "No valid Participants selected.",
             )
         )
-
-    def get_test_dashboard_end_all_passes_confirm_url(self):
-        return self._form_target_from_button("cmd[confirmFinishTestPassForAllUser]")[0]
 
     def get_test_intro_enabled(self) -> bool:
         field = self.get_form_input_from_label_path("Einleitung", section_title="Informationen zum Einstieg")

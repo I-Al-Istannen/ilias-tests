@@ -658,33 +658,14 @@ class IliasInteractor:
 
     async def end_all_user_passes(self, test_page: ExtendedIliasPage, indent: str = ""):
         dashboard = await self.select_tab(test_page, TestTab.PARTICIPANTS)
-        if submit_url := dashboard.get_test_dashboard_end_all_passes_submit_url():
-            page = await self._post_authenticated(
-                submit_url,
-                data={},
-                soup_succeeded=lambda pg: pg.test_dashboard_has_no_active_passes()
-                or ExtendedIliasPage.page_has_success_alert(pg),
-            )
-            if page.test_dashboard_has_no_active_passes():
-                log.warn(f"{indent}No active test passes to end")
-            return
-        url = dashboard.get_test_dashboard_end_all_passes_url()
-
-        if not url:
-            log.warn(f"{indent}End button not found (are all passes already finished?)")
-            return
-
-        page = await self._get_extended_page(url)
-        if ExtendedIliasPage.page_has_failure_alert(page):
-            raise CrawlError("Could not end passes")
-
-        # Confirm it
-        url = page.get_test_dashboard_end_all_passes_confirm_url()
-        await self._post_authenticated(
-            url=url,
-            data={"cmd[confirmFinishTestPassForAllUser]": "Fortfahren"},
-            soup_succeeded=lambda pg: "cmdclass=iltestparticipantsgui" in pg.normalized_url(),
+        page = await self._post_authenticated(
+            dashboard.get_test_dashboard_end_all_passes_submit_url(),
+            data={},
+            soup_succeeded=lambda pg: pg.test_dashboard_has_no_active_passes()
+            or ExtendedIliasPage.page_has_success_alert(pg),
         )
+        if page.test_dashboard_has_no_active_passes():
+            log.warn(f"{indent}No active test passes to end")
 
     async def set_manual_grading_filter_show_all(self, tab_page: ExtendedIliasPage):
         filter_url = tab_page.get_manual_grading_filter_url()
