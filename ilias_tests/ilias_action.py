@@ -6,7 +6,7 @@ import mimetypes
 import re
 import ssl
 from collections.abc import Callable
-from pathlib import Path, PurePath
+from pathlib import Path
 from random import randint
 from typing import Any, Mapping, Optional, cast
 
@@ -99,18 +99,6 @@ class IliasInteractor:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self._save_cookies()
         return await self.session.__aexit__(exc_type, exc_val, exc_tb)
-
-    async def navigate_to_folder(self, base_url: str, path: PurePath) -> ExtendedIliasPage:
-        page = await self._get_extended_page(base_url)
-        for part in path.parts:
-            found_child = False
-            for child in page.get_child_elements():
-                if child.name == part:
-                    page = await self._get_extended_page(child.url)
-                    found_child = True
-            if not found_child:
-                raise CrawlError(f"Could not find folder {part!r} in {fmt_path(path)}")
-        return page
 
     async def create_test(self, folder: ExtendedIliasPage, title: str, description: str) -> ExtendedIliasPage:
         log.explain_topic(f"Creating test '{title}' in '{folder.url()}'")
@@ -428,8 +416,6 @@ class IliasInteractor:
             "(.Bestanden. / .Nicht bestanden. anzeigen)|(Show .Passed. / .Failed. Status)": "checked",
             "(Note anzeigen)|(Show Grade)": "checked",
             "(Detaillierte Testergebnisse (anzeigen|zugänglich machen))|(Show detailed test results)": "checked",
-            "(Bewertete Antworten als Liste)|(Scored Answers of Participant)": "checked",
-            "(Bewertete Antworten auf Einzelseiten)|(Scored Answers on single pages)": "checked",
             "(Bestmögliche Lösung)|(Best Solution)": "checked",
             "(Rückmeldungen)|(Feedback)": "checked",
             "(Druckbare Liste der Antworten)|(Additional .List of Answers. for Printing)": "checked",
@@ -500,11 +486,6 @@ class IliasInteractor:
 
         url, data = questions_tab.get_test_question_save_order_data(question_to_position)
         await self._post_authenticated(url=url, data=data)
-
-    async def select_edit_question(self, question_url: str):
-        log.explain(f"Editing question '{question_url}'")
-        page = await self.select_page(question_url)
-        return await self.select_page(page.get_test_question_edit_url())
 
     async def design_page_add_blocks(self, edit_page: ExtendedIliasPage, blocks: list[PageDesignBlock]):
         log.explain_topic("Adding design blocks to page")

@@ -225,10 +225,6 @@ class ExtendedIliasPage(IliasPage):
             form_values.add(ExtraFormData(name="ilfilehash", value=__(filehash.get("value")), disabled=False))
         return url, form_values
 
-    def get_test_question_design_code_submit_url(self):
-        """Url for submitting a code block."""
-        return self._form_target_from_button("cmd[create_src]")[0]
-
     @staticmethod
     def _get_extra_form_values(form: bs4.Tag) -> set[ExtraFormData]:
         extra_values = set()
@@ -283,18 +279,6 @@ class ExtendedIliasPage(IliasPage):
 
     def _form_target_from_form(self, form: bs4.Tag):
         return self._abs_url_from_relative(__(form["action"]))
-
-    def get_test_question_after_values(self) -> dict[str, str]:
-        position_select = self._soup.find(id="position")
-        if not position_select:
-            raise CrawlError("Could not find element")
-        results = {}
-        for select in position_select.find_all("option"):
-            text: str = select.getText().strip()
-            if "Nach" in text:
-                title = text[len("Nach") : text.rfind("[")].strip()
-                results[title] = select["value"]
-        return results
 
     def get_test_question_ids(self) -> dict[str, str]:
         """Returns { title -> question_id }"""
