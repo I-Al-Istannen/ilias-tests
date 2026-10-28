@@ -37,6 +37,16 @@ from .spec import (
 )
 
 
+async def _request_german_pages(
+    request: aiohttp.ClientRequest, handler: aiohttp.ClientHandlerType
+) -> aiohttp.ClientResponse:
+    # The parsers rely on German labels. ILIAS uses the "lang" parameter instead of the user's
+    # language for this request. This also runs for every redirect.
+    if request.url.name in ("ilias.php", "goto.php"):
+        request.url = request.url.update_query(lang="de")
+    return await handler(request)
+
+
 class IliasInteractor:
     def __init__(
         self,
@@ -67,6 +77,7 @@ class IliasInteractor:
                 sock_read=http_timeout,
             ),
             requote_redirect_url=False,
+            middlewares=(_request_german_pages,),
         )
 
     def _load_cookies(self) -> None:
