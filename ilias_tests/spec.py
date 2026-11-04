@@ -532,6 +532,7 @@ ManualGradingQuestionType = Literal["single_choice", "freeform_text", "file_uplo
 class ManualGradingQuestion:
     id: str
     text: str
+    question_body: str | None  # the title text containing the actual question text, though ilias calls it "title"
     max_points: float
     question_type: ManualGradingQuestionType
 
@@ -707,7 +708,10 @@ def _parse_manual_grading_question_file(question_id: str, text: str) -> dict[str
 
 
 def _parse_student_question_result(
-    reader: StringReader, question_id: str, question_title: str
+    reader: StringReader,
+    question_id: str,
+    question_title: str,
+    question_body: str | None = None,
 ) -> tuple[str, ManualGradingGradedQuestion]:
     student_mail = reader.read_line().strip().replace("## ", "")
     student_mail = student_mail[: student_mail.find("(")].strip()
@@ -728,6 +732,7 @@ def _parse_student_question_result(
         ManualGradingQuestion(
             question_id,
             question_title,
+            question_body,
             float(max_points),
             "file_upload" if answer == "file\\_upload" else "freeform_text",
         ),

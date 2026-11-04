@@ -688,7 +688,9 @@ class ExtendedIliasPage(IliasPage):
         for question in self._soup.find_all(name="h2", string=re.compile("Frage:")):  # type: ignore
             match = re.compile(r"\[ID: (\d+)]").search(question.getText())
             question_id = match.group(1)  # type: ignore
-            answer = self._get_manual_grading_participant_answer(_(question.find_next(id="il_prop_cont_")))
+            answer_html = _(question.find_next(id="il_prop_cont_"))
+            question_body = answer_html.select_one(".ilc_qtitle_Title")
+            answer = self._get_manual_grading_participant_answer(answer_html)
             if answer is None:
                 raise CrawlError(f"Unsupported answer type for question {question.getText().strip()!r}")
             answer_type, answer_value = answer
@@ -713,7 +715,9 @@ class ExtendedIliasPage(IliasPage):
 
             questions.append(
                 ManualGradingGradedQuestion(
-                    ManualGradingQuestion(question_id, question.getText().strip(), float(max_points), answer_type),
+                    ManualGradingQuestion(
+                        question_id, question.getText().strip(), str(question_body), float(max_points), answer_type
+                    ),
                     answer_value,
                     float(__(points)),
                     feedback,
