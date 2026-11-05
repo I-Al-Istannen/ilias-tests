@@ -28,6 +28,7 @@ def test_results(
     assert len(participant["answers"]) == 1
     answer = participant["answers"][0]
     assert answer["question"]["id"] == str(finished_participant["question_id"])
+    assert "Explain your answer." in answer["question"]["question_body"]
     assert answer["question"]["max_points"] == 4.0
     assert answer["question"]["question_type"] == "freeform_text"
     assert "My independently seeded answer." in answer["answer"]
