@@ -716,7 +716,11 @@ class ExtendedIliasPage(IliasPage):
             questions.append(
                 ManualGradingGradedQuestion(
                     ManualGradingQuestion(
-                        question_id, question.getText().strip(), str(question_body), float(max_points), answer_type
+                        question_id,
+                        question.getText().strip(),
+                        str(question_body) if question_body else None,
+                        float(max_points),
+                        answer_type,
                     ),
                     answer_value,
                     float(__(points)),
